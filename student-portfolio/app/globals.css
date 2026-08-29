@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap");
+
+html,
+body {
+  background: #f6efe6;
+  color: #1c1b1a;
+}
+
+/* Ambient "breathing" background used behind the auth screens and the
+   dashboard hero. Two soft blurred blobs that slowly scale and drift.
+   Respects reduced-motion preferences. */
+.breathing-bg {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.breathing-bg span {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(90px);
+}
+
+.breathing-bg .blob-1 {
+  width: 46vw;
+  height: 46vw;
+  top: -10%;
+  left: -8%;
+  background: radial-gradient(circle at 30% 30%, #f2b694, transparent 70%);
+  animation: breathe 10s ease-in-out infinite;
+}
+
+.breathing-bg .blob-2 {
+  width: 38vw;
+  height: 38vw;
+  bottom: -12%;
+  right: -6%;
+  background: radial-gradient(circle at 60% 60%, #cbb8e8, transparent 70%);
+  animation: breatheSlow 14s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .breathing-bg span {
+    animation: none !important;
+  }
+}
