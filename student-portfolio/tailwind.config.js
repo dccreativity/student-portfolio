@@ -15,7 +15,7 @@ module.exports = {
         line: "#E4D9C8",
       },
       fontFamily: {
-        display: ["'Fraunces'", "serif"],
+        display: ["'Bricolage Grotesque'", "sans-serif"],
         body: ["'Inter'", "sans-serif"],
       },
       keyframes: {
