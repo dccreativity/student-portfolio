@@ -3,13 +3,14 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabaseClient";
-import BreathingBackground from "@/components/BreathingBackground";
+import Logo from "@/components/Logo";
 
 function VerifyForm() {
   const router = useRouter();
   const params = useSearchParams();
   const supabase = createClient();
   const email = params.get("email") || "";
+  const next = params.get("next") || "/dashboard";
 
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
@@ -34,7 +35,12 @@ function VerifyForm() {
       return;
     }
 
-    router.push("/dashboard");
+    if (next === "/admin/login") {
+      // Admins aren't approved yet at this point — sign back out and send
+      // them to the admin login screen, which explains the pending state.
+      await supabase.auth.signOut();
+    }
+    router.push(next);
   }
 
   async function handleResend() {
@@ -52,9 +58,9 @@ function VerifyForm() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-6">
-      <BreathingBackground />
+    <main className="min-h-screen flex items-center justify-center bg-cream px-6">
       <div className="w-full max-w-md bg-white/70 backdrop-blur-xl border border-line rounded-3xl p-8 shadow-sm">
+        <Logo className="h-9 mb-6" />
         <h1 className="font-display text-3xl mb-2">Check your inbox</h1>
         <p className="text-sm text-neutral-600 mb-6">
           Enter the 6-digit code we sent to <span className="font-medium">{email}</span>.
@@ -82,10 +88,7 @@ function VerifyForm() {
           </button>
         </form>
 
-        <button
-          onClick={handleResend}
-          className="text-sm text-clay font-medium mt-6"
-        >
+        <button onClick={handleResend} className="text-sm text-clay font-medium mt-6">
           Resend code
         </button>
       </div>

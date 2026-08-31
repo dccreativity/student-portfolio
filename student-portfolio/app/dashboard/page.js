@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabaseClient";
 import { SECTION_SCHEMA } from "@/lib/sectionSchema";
+import { UNSPLASH_IMAGES } from "@/lib/constants";
 
 function isSectionFilled(meta, content) {
   if (!content) return false;
@@ -111,12 +112,20 @@ export default function DashboardOverview() {
 
   return (
     <main className="p-6 md:p-10 max-w-6xl">
-      <p className="text-neutral-500">Welcome back,</p>
-      <h1 className="font-display text-4xl md:text-5xl mt-1 mb-8">
-        Your <span className="text-clay">journey.</span>
-        <br />
-        Your story.
-      </h1>
+      <div className="relative rounded-3xl overflow-hidden mb-8 h-40 md:h-48">
+        <img
+          src={UNSPLASH_IMAGES.dashboardHero}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-ink/70 via-ink/30 to-transparent" />
+        <div className="relative h-full flex flex-col justify-end p-6 md:p-8">
+          <p className="text-white/70 text-sm">Welcome back,</p>
+          <h1 className="font-display text-3xl md:text-4xl text-white leading-tight">
+            Your <span className="text-clayLight">journey.</span> Your story.
+          </h1>
+        </div>
+      </div>
 
       <div className="grid md:grid-cols-3 gap-6">
         <section className="md:col-span-2 bg-white/70 backdrop-blur border border-line rounded-3xl p-6">
@@ -127,6 +136,11 @@ export default function DashboardOverview() {
             <div>
               <h2 className="font-display text-2xl">{profile?.full_name}</h2>
               <p className="text-sm text-neutral-500">{profile?.email}</p>
+              {profile?.grade && (
+                <span className="inline-block mt-1 text-xs font-medium bg-clay/10 text-clay rounded-full px-3 py-1">
+                  Grade {profile.grade}
+                </span>
+              )}
             </div>
           </div>
 

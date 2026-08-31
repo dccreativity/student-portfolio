@@ -4,7 +4,7 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabaseClient";
-import BreathingBackground from "@/components/BreathingBackground";
+import Logo from "@/components/Logo";
 
 function AdminLoginForm() {
   const router = useRouter();
@@ -14,9 +14,7 @@ function AdminLoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(
-    params.get("denied")
-      ? "That account isn't an approved administrator yet."
-      : ""
+    params.get("denied") ? "That account isn't an approved administrator yet." : ""
   );
   const [loading, setLoading] = useState(false);
 
@@ -60,10 +58,10 @@ function AdminLoginForm() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-6">
-      <BreathingBackground />
+    <main className="min-h-screen flex items-center justify-center bg-cream px-6">
       <div className="w-full max-w-md bg-white/70 backdrop-blur-xl border border-line rounded-3xl p-8 shadow-sm">
-        <p className="font-display text-2xl mb-1">folio. <span className="text-sm text-neutral-500 font-body">admin</span></p>
+        <Logo className="h-9 mb-1" />
+        <p className="text-xs uppercase tracking-wide text-neutral-500 mb-6">Staff / Admin</p>
         <h1 className="font-display text-3xl mb-6">Staff login</h1>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -99,9 +97,9 @@ function AdminLoginForm() {
         </form>
 
         <p className="text-sm text-neutral-600 mt-6">
-          Not staff?{" "}
-          <Link href="/login" className="text-clay font-medium">
-            Student login
+          New staff member?{" "}
+          <Link href="/admin/signup" className="text-clay font-medium">
+            Request access
           </Link>
         </p>
       </div>

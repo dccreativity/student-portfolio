@@ -5,7 +5,9 @@ import { createClient } from "@/lib/supabaseClient";
 
 const BUCKET = "portfolio-media";
 
-export default function MediaGallery({ userId, sectionKey, mediaType }) {
+// `readOnly` is used by the admin's per-student view — admins can browse
+// a student's galleries but never upload, edit captions, or delete.
+export default function MediaGallery({ userId, sectionKey, mediaType, readOnly = false }) {
   const supabase = createClient();
   const fileInput = useRef(null);
 
@@ -78,7 +80,7 @@ export default function MediaGallery({ userId, sectionKey, mediaType }) {
     if (fileInput.current) fileInput.current.value = "";
   }
 
-  async function updateCaption(id, caption) {
+  function updateCaption(id, caption) {
     setItems((prev) => prev.map((it) => (it.id === id ? { ...it, caption } : it)));
   }
 
@@ -92,18 +94,26 @@ export default function MediaGallery({ userId, sectionKey, mediaType }) {
 
   return (
     <div>
-      <label className="inline-block rounded-xl bg-ink text-white px-5 py-2.5 text-sm font-medium hover:bg-black transition cursor-pointer">
-        {uploading ? "Uploading…" : `Upload ${mediaType === "image" ? "photo" : "video"}`}
-        <input
-          ref={fileInput}
-          type="file"
-          accept={mediaType === "image" ? "image/*" : "video/*"}
-          onChange={handleUpload}
-          disabled={uploading}
-          className="hidden"
-        />
-      </label>
-      {status && <span className="text-sm text-neutral-500 ml-4">{status}</span>}
+      {readOnly && (
+        <p className="text-xs uppercase tracking-wide text-neutral-400 mb-4">View only</p>
+      )}
+
+      {!readOnly && (
+        <>
+          <label className="inline-block rounded-xl bg-ink text-white px-5 py-2.5 text-sm font-medium hover:bg-black transition cursor-pointer">
+            {uploading ? "Uploading…" : `Upload ${mediaType === "image" ? "photo" : "video"}`}
+            <input
+              ref={fileInput}
+              type="file"
+              accept={mediaType === "image" ? "image/*" : "video/*"}
+              onChange={handleUpload}
+              disabled={uploading}
+              className="hidden"
+            />
+          </label>
+          {status && <span className="text-sm text-neutral-500 ml-4">{status}</span>}
+        </>
+      )}
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
         {items.map((item) => (
@@ -114,19 +124,25 @@ export default function MediaGallery({ userId, sectionKey, mediaType }) {
               <video src={item.file_url} controls className="w-full h-40 object-cover bg-black" />
             )}
             <div className="p-3 space-y-2">
-              <input
-                value={item.caption || ""}
-                onChange={(e) => updateCaption(item.id, e.target.value)}
-                onBlur={() => saveCaption(item)}
-                placeholder="Caption / activity"
-                className="w-full text-sm rounded-lg border border-line px-2 py-1 outline-none focus:ring-2 focus:ring-clay"
-              />
-              <button
-                onClick={() => handleDelete(item)}
-                className="text-xs text-neutral-400 hover:text-red-600"
-              >
-                Remove
-              </button>
+              {readOnly ? (
+                <p className="text-sm text-neutral-600">{item.caption || "—"}</p>
+              ) : (
+                <>
+                  <input
+                    value={item.caption || ""}
+                    onChange={(e) => updateCaption(item.id, e.target.value)}
+                    onBlur={() => saveCaption(item)}
+                    placeholder="Caption / activity"
+                    className="w-full text-sm rounded-lg border border-line px-2 py-1 outline-none focus:ring-2 focus:ring-clay"
+                  />
+                  <button
+                    onClick={() => handleDelete(item)}
+                    className="text-xs text-neutral-400 hover:text-red-600"
+                  >
+                    Remove
+                  </button>
+                </>
+              )}
             </div>
           </div>
         ))}

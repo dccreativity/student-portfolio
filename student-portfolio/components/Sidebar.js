@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabaseClient";
 import { SECTION_SCHEMA } from "@/lib/sectionSchema";
+import Logo from "@/components/Logo";
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -20,7 +21,9 @@ export default function Sidebar() {
 
   return (
     <aside className="hidden md:flex md:flex-col w-64 shrink-0 bg-ink text-white/90 min-h-screen sticky top-0 px-5 py-6">
-      <p className="font-display text-2xl text-white mb-8 px-2">folio.</p>
+      <div className="mb-8 px-2">
+        <Logo dark className="h-7" />
+      </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto pr-1">
         <Link

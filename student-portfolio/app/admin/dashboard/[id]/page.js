@@ -29,7 +29,15 @@ export default function AdminStudentView() {
         ← All students
       </Link>
       <h1 className="font-display text-3xl mt-2 mb-1">{student.full_name}</h1>
-      <p className="text-neutral-500 mb-8">{student.email}</p>
+      <p className="text-neutral-500 mb-1">{student.email}</p>
+      <div className="flex items-center gap-3 mb-8">
+        {student.grade && (
+          <span className="inline-block text-xs font-medium bg-clay/10 text-clay rounded-full px-3 py-1">
+            Grade {student.grade}
+          </span>
+        )}
+        <span className="text-xs text-neutral-400">Admins can view but not edit student data.</span>
+      </div>
 
       <div className="grid md:grid-cols-[240px_1fr] gap-6">
         <nav className="space-y-1 max-h-[80vh] overflow-y-auto pr-1">
@@ -49,9 +57,9 @@ export default function AdminStudentView() {
         <section className="bg-white/70 border border-line rounded-3xl p-6">
           <h2 className="font-medium mb-4">{meta.label}</h2>
           {meta.type === "media" ? (
-            <MediaGallery userId={id} sectionKey={meta.key} mediaType={meta.mediaType} />
+            <MediaGallery userId={id} sectionKey={meta.key} mediaType={meta.mediaType} readOnly />
           ) : (
-            <SectionEditor userId={id} sectionKey={meta.key} />
+            <SectionEditor userId={id} sectionKey={meta.key} readOnly />
           )}
         </section>
       </div>
