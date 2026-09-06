@@ -112,11 +112,21 @@ create trigger on_auth_user_created
 create or replace function public.protect_profile_role()
 returns trigger
 language plpgsql
-security definer
 set search_path = public
 as $$
 begin
-  if new.role is distinct from old.role or new.status is distinct from old.status then
+  -- Deliberately NOT security definer: inside a security-definer function
+  -- current_user reports the function's owner, not the role doing the
+  -- update, which would make this check useless.
+  --
+  -- Every request from a browser runs as `anon` or `authenticated`, so a
+  -- student can never change their own role or status whatever they send.
+  -- Anything else -- you, running SQL in the Supabase SQL Editor -- is
+  -- allowed through on purpose, otherwise there would be no way left to
+  -- appoint or remove staff at all.
+  if current_user in ('anon', 'authenticated')
+     and (new.role is distinct from old.role or new.status is distinct from old.status)
+  then
     new.role := old.role;
     new.status := old.status;
   end if;
