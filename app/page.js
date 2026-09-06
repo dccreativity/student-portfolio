@@ -29,7 +29,7 @@ export default async function Home() {
 
       <main className="min-h-screen flex flex-col">
         <header className="flex items-center justify-between px-6 md:px-12 py-6">
-          <Logo className="h-8 md:h-9" />
+          <Logo className="h-10 md:h-12" />
           <Link
             href="/choose"
             className="rounded-full border border-ink/10 bg-white/60 backdrop-blur px-5 py-2 text-sm font-medium hover:bg-white hover:border-ink/20 transition"

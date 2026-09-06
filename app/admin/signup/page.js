@@ -59,7 +59,7 @@ export default function AdminSignupPage() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-cream px-6">
       <div className="w-full max-w-md bg-white/70 backdrop-blur-xl border border-line rounded-3xl p-8 shadow-sm">
-        <Logo className="h-9 mb-6" />
+        <Logo className="h-12 mb-6" />
         <h1 className="font-display text-3xl mb-2">Staff account</h1>
         <p className="text-sm text-neutral-600 mb-6">
           Staff access is granted by email in advance. Use the exact address

@@ -72,7 +72,7 @@ function AdminLoginForm() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-cream px-6">
       <div className="w-full max-w-md bg-white/70 backdrop-blur-xl border border-line rounded-3xl p-8 shadow-sm">
-        <Logo className="h-9 mb-1" />
+        <Logo className="h-12 mb-2" />
         <p className="text-xs uppercase tracking-wide text-neutral-500 mb-6">Staff / Admin</p>
         <h1 className="font-display text-3xl mb-6">Staff login</h1>
 
