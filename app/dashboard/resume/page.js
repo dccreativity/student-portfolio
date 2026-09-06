@@ -77,7 +77,7 @@ export default function ResumePage() {
         </button>
       </div>
 
-      <ResumePreview profile={model.profile} sections={model.sections} header={model.header} />
+      <ResumePreview profile={model.profile} sections={model.sections} />
     </main>
   );
 }

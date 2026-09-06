@@ -94,11 +94,7 @@ export default function AdminStudentView() {
               </button>
             </div>
             {resumeModel ? (
-              <ResumePreview
-                profile={resumeModel.profile}
-                sections={resumeModel.sections}
-                header={resumeModel.header}
-              />
+              <ResumePreview profile={resumeModel.profile} sections={resumeModel.sections} />
             ) : (
               <p className="text-neutral-500">Loading…</p>
             )}

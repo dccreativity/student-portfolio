@@ -1,221 +1,169 @@
 "use client";
 
 import {
-  RESUME_SPECIAL_SECTIONS,
-  entryLines,
-  sectionHasContent,
-} from "@/lib/resumeData";
-import { attachmentsOf } from "@/lib/uploads";
+  LETTERHEAD_SECTIONS,
+  buildLetterhead,
+  buildSectionBlocks,
+  headingRuns,
+} from "@/lib/resumeLayout";
 
-function Attachments({ items }) {
-  if (!items || items.length === 0) return null;
-  return (
-    <span className="ml-2">
-      {items.map((a, i) => (
+// Mirrors lib/generateResumePdf.js exactly, so what a student sees here
+// is what comes out of Download PDF: Times, US Letter proportions,
+// uppercase section headers over a double rule, bold/italic heading runs
+// with a right-aligned date, and hanging-indent bullets.
+
+function Runs({ runs }) {
+  return runs.map((run, i) => (
+    <span
+      key={i}
+      className={run.style === "bold" ? "font-bold" : run.style === "italic" ? "italic" : ""}
+    >
+      {run.text}
+    </span>
+  ));
+}
+
+function Bullet({ item }) {
+  if (item.type === "attachment") {
+    return (
+      <li className="flex gap-2 pl-[49px] list-none">
         <a
-          key={a.path || a.url || i}
-          href={a.url}
+          href={item.url}
           target="_blank"
           rel="noreferrer"
-          className="text-clay underline text-[11px] mr-2"
+          className="italic text-[11.3px] text-neutral-500 hover:text-clay underline decoration-neutral-300"
         >
-          📎 {a.name || "attachment"}
+          Attached: {item.text}
         </a>
-      ))}
-    </span>
-  );
-}
-
-function SectionBlock({ title, children }) {
+      </li>
+    );
+  }
   return (
-    <section className="break-inside-avoid">
-      <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-ink border-b border-ink/70 pb-1 mb-2">
-        {title}
-      </h2>
-      {children}
-    </section>
-  );
-}
-
-export default function ResumePreview({ profile, sections, header }) {
-  const objective = sections.find((s) => s.meta.key === "objective");
-  const objectiveText = String(objective?.content?.statement || "").trim();
-  const headerFiles = attachmentsOf(sections.find((s) => s.meta.key === "header")?.content);
-
-  return (
-    <article className="bg-white border border-line rounded-3xl px-8 py-10 md:px-14 md:py-14 max-w-3xl mx-auto shadow-sm text-ink">
-      {/* ---- Letterhead: name + contact details ---- */}
-      <header className="text-center border-b-2 border-ink pb-4 mb-6">
-        <h1 className="font-display text-3xl md:text-4xl tracking-tight">{header?.name}</h1>
-        {header?.contactLines?.length > 0 ? (
-          <div className="mt-2 space-y-0.5">
-            {header.contactLines.map((line, i) => (
-              <p key={i} className="text-[12px] text-neutral-600">
-                {line}
-              </p>
-            ))}
-          </div>
+    <li className="flex gap-0 list-none">
+      <span className="w-[24px] shrink-0" />
+      <span className="w-[25px] shrink-0 text-center">•</span>
+      <span className="flex-1 min-w-0">
+        {item.label && <span className="italic">{item.label}: </span>}
+        {item.url ? (
+          <a href={item.url} target="_blank" rel="noreferrer" className="text-blue-800 underline">
+            {item.text}
+          </a>
         ) : (
-          <p className="mt-2 text-[12px] text-neutral-300">
-            Add your address, email, phone and LinkedIn in Header / Contact
+          item.text
+        )}
+      </span>
+      {item.right && (
+        <span className="shrink-0 pl-3 text-right tabular-nums">{item.right}</span>
+      )}
+    </li>
+  );
+}
+
+function SectionHeading({ children }) {
+  return (
+    <div>
+      <h2 className="font-bold uppercase text-[14.7px] tracking-[0.01em] leading-tight">
+        {children}
+      </h2>
+      {/* The reference's double rule under every section header. */}
+      <div className="border-t border-black mt-[3px]" />
+      <div className="border-t border-black mt-[1.5px] mb-[7px]" />
+    </div>
+  );
+}
+
+export default function ResumePreview({ profile, sections }) {
+  const headerSection = sections.find((s) => s.meta.key === "header");
+  const letterhead = buildLetterhead(profile, headerSection?.content);
+
+  return (
+    <article
+      className="bg-white border border-line rounded-xl shadow-sm mx-auto text-black font-serif leading-[1.18]"
+      style={{ maxWidth: "816px", padding: "48px", fontSize: "13.33px" }}
+    >
+      {/* ---- Letterhead ---- */}
+      <header className="text-center mb-1">
+        <h1 className="font-bold text-[24px] leading-tight mb-[2px]">{letterhead.name}</h1>
+        {letterhead.lines.length === 0 && (
+          <p className="text-neutral-400 italic mt-1">
+            Add your email, phone, address and LinkedIn under Header / Contact.
           </p>
         )}
-        {header?.grade && (
-          <p className="mt-1 text-[11px] uppercase tracking-wide text-neutral-400">
-            {header.grade}
+        {letterhead.lines.map((line, i) => (
+          <p key={i} className="mt-[2px]">
+            {line.label && <span className="font-bold">{line.label} </span>}
+            {line.email ? (
+              <>
+                <a href={`mailto:${line.email}`} className="text-blue-800 underline">
+                  {line.email}
+                </a>
+                {line.text.slice(line.email.length)}
+              </>
+            ) : (
+              line.text
+            )}
           </p>
-        )}
-        {headerFiles.length > 0 && (
-          <div className="mt-1">
-            <Attachments items={headerFiles} />
-          </div>
-        )}
+        ))}
       </header>
 
-      {/* ---- Objective, immediately under the letterhead ---- */}
-      <div className="mb-6">
-        <SectionBlock title="Objective">
-          {objectiveText ? (
-            <p className="text-[12.5px] leading-relaxed text-neutral-800 whitespace-pre-wrap">
-              {objectiveText}
-            </p>
-          ) : (
-            <p className="text-[12.5px] text-neutral-300">
-              Your objective statement will appear here.
-            </p>
-          )}
-          <Attachments items={attachmentsOf(objective?.content)} />
-        </SectionBlock>
-      </div>
-
-      {/* ---- Every remaining section, in template order ---- */}
-      <div className="space-y-6">
+      {/* ---- Sections ---- */}
+      <div className="mt-4">
         {sections
-          .filter((s) => !RESUME_SPECIAL_SECTIONS.includes(s.meta.key))
-          .map(({ meta, content, media }) => {
-            const has = sectionHasContent({ meta, content, media });
+          .filter((s) => !LETTERHEAD_SECTIONS.includes(s.meta.key))
+          .map((section) => {
+            const blocks = buildSectionBlocks(section);
             return (
-              <SectionBlock key={meta.key} title={meta.label}>
-                {!has && (
-                  <p className="text-[12.5px] text-neutral-300">
-                    Nothing added yet — this space fills in as you add entries.
-                  </p>
+              <section key={section.meta.key} className="mt-[22px] first:mt-0">
+                <SectionHeading>{section.meta.label}</SectionHeading>
+
+                {blocks.length === 0 && (
+                  <p className="italic text-[11.3px] text-neutral-400">To be added.</p>
                 )}
 
-                {has && meta.type === "single" && (
-                  <dl className="grid sm:grid-cols-2 gap-x-8 gap-y-1 text-[12.5px]">
-                    {meta.fields.map(
-                      (f) =>
-                        String(content[f.key] || "").trim() && (
-                          <div key={f.key} className="flex gap-1.5">
-                            <dt className="text-neutral-500 shrink-0">{f.label}:</dt>
-                            <dd className="text-neutral-900">{content[f.key]}</dd>
-                          </div>
-                        )
-                    )}
-                  </dl>
-                )}
-
-                {has && meta.type === "repeatable" && (
-                  <ul className="space-y-1.5 text-[12.5px]">
-                    {(content.entries || []).map((entry, i) => {
-                      const line = entryLines(meta.fields, entry);
-                      return (
-                        <li key={i} className="flex gap-2">
-                          <span className="text-ink/40 select-none">▪</span>
-                          <span className="min-w-0">
-                            <span className="font-medium text-neutral-900">{line.title}</span>
-                            {line.detail && (
-                              <span className="text-neutral-600"> — {line.detail}</span>
-                            )}
-                            <Attachments items={line.attachments} />
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-
-                {has && meta.type === "mixed" && (
-                  <div className="space-y-3 text-[12.5px]">
-                    <dl className="grid sm:grid-cols-2 gap-x-8 gap-y-1">
-                      {meta.fields.map(
-                        (f) =>
-                          String(content[f.key] || "").trim() && (
-                            <div key={f.key} className="flex gap-1.5">
-                              <dt className="text-neutral-500 shrink-0">{f.label}:</dt>
-                              <dd className="text-neutral-900">{content[f.key]}</dd>
-                            </div>
-                          )
-                      )}
-                    </dl>
-                    {meta.repeatableGroups.map((group) => {
-                      const entries = content[group.key] || [];
-                      if (entries.length === 0) return null;
-                      return (
-                        <div key={group.key}>
-                          <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-500 mb-1">
-                            {group.label}
+                {blocks.map((block, i) => {
+                  if (block.type === "entry") {
+                    return (
+                      <div key={i} className={i > 0 ? "mt-[6px]" : ""}>
+                        <div className="flex gap-3">
+                          <p className="flex-1 min-w-0">
+                            <Runs runs={headingRuns(block)} />
                           </p>
-                          <ul className="space-y-1">
-                            {entries.map((entry, i) => {
-                              const line = entryLines(group.fields, entry);
-                              return (
-                                <li key={i} className="flex gap-2">
-                                  <span className="text-ink/40 select-none">▪</span>
-                                  <span className="min-w-0">
-                                    <span className="font-medium text-neutral-900">
-                                      {line.title}
-                                    </span>
-                                    {line.detail && (
-                                      <span className="text-neutral-600"> — {line.detail}</span>
-                                    )}
-                                    <Attachments items={line.attachments} />
-                                  </span>
-                                </li>
-                              );
-                            })}
-                          </ul>
+                          {block.right && (
+                            <p className="shrink-0 text-right">{block.right}</p>
+                          )}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {has && meta.type === "media" && (
-                  <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {media.slice(0, 6).map((m, i) => (
-                      <li key={i} className="text-[11px]">
-                        {meta.mediaType === "image" ? (
-                          <img
-                            src={m.file_url}
-                            alt={m.caption || ""}
-                            className="w-full h-20 object-cover rounded-lg border border-line"
-                          />
-                        ) : (
-                          <a
-                            href={m.file_url}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="w-full h-20 rounded-lg border border-line bg-sand grid place-items-center text-clay"
-                          >
-                            ▶ Watch
-                          </a>
+                        {block.bullets.length > 0 && (
+                          <ul className="mt-[1px]">
+                            {block.bullets.map((b, j) => (
+                              <Bullet key={j} item={b} />
+                            ))}
+                          </ul>
                         )}
-                        <p className="mt-1 text-neutral-600 truncate">{m.caption || "—"}</p>
-                      </li>
-                    ))}
-                    {media.length > 6 && (
-                      <li className="text-[11px] text-neutral-500 self-center">
-                        +{media.length - 6} more in the portal
-                      </li>
-                    )}
-                  </ul>
-                )}
-
-                {/* Files attached to the section itself, not to one entry. */}
-                {meta.type !== "media" && <Attachments items={attachmentsOf(content)} />}
-              </SectionBlock>
+                      </div>
+                    );
+                  }
+                  if (block.type === "paragraph") {
+                    return (
+                      <p key={i} className="whitespace-pre-wrap">
+                        {block.text}
+                      </p>
+                    );
+                  }
+                  if (block.type === "labelled") {
+                    return (
+                      <p key={i}>
+                        <span className="font-bold">{block.label} </span>
+                        {block.text}
+                      </p>
+                    );
+                  }
+                  return (
+                    <ul key={i}>
+                      <Bullet item={block} />
+                    </ul>
+                  );
+                })}
+              </section>
             );
           })}
       </div>

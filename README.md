@@ -70,13 +70,31 @@ closing the tab with unsaved work warns you first.
 
 ### Resume
 
-The resume now reads like a real resume: your name, address, email,
-phone and LinkedIn from Header/Contact form the letterhead, the
-Objective sits directly beneath it, and every remaining section follows
-in template order — each header always shown, with a line telling you
-the space fills in as you add entries. Attached files appear as clickable
-links in the PDF. Pages are numbered, and it flows to as many pages as
-the content needs.
+The resume is now laid out from the sample consulting resume you sent, on
+US Letter with half-inch margins:
+
+- **Centred letterhead** — name in 18pt bold, then your email (as a
+  clickable link) and phone, then **Address:** and **LinkedIn / Website:**
+  in bold with their values beside them, all pulled from Header / Contact.
+- **Section headers** in bold capitals over a double rule spanning the
+  page, in template order, every one always shown — the space beneath
+  reads "To be added." until you fill it in.
+- **Entry lines** in the reference's exact shape: **bold organisation**,
+  *italic role*, plain location on the left, with the date range
+  right-aligned on the same line.
+- **Bullets** with a hanging indent, so wrapped lines align under the
+  text rather than under the dot, and italic labels where the reference
+  uses them (*GPA:*, *SAT:*, *Outcomes:*).
+- **Skills** grouped by category into bold-labelled lines
+  (**Language:** …, **Computer Skills:** …), exactly like the reference's
+  closing block.
+- Set in Times throughout, with attached files as clickable links, page
+  numbers when it runs past one page, and no entry heading ever stranded
+  at the foot of a page away from its bullets.
+
+The on-screen Resume tab renders from the same layout description at 1:1
+page scale, so what you see there is what the PDF gives you — including
+where the lines break.
 
 ### Look and feel
 
