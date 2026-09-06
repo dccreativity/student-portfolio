@@ -52,7 +52,14 @@ function AdminLoginForm() {
       return;
     }
     if (profile?.status !== "approved") {
-      setError("This staff account isn't active. Contact your school administrator.");
+      // Reachable by staff accounts created before access moved to the
+      // email allowlist, which were left waiting for a manual approval
+      // step that no longer exists. Name the remedy rather than leaving
+      // the person — often the administrator themselves — at a dead end.
+      setError(
+        "This staff account hasn't been activated yet. Ask your school administrator " +
+          "to add this address to the staff list (supabase/add-staff.sql)."
+      );
       await supabase.auth.signOut();
       return;
     }

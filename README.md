@@ -300,6 +300,19 @@ Admin access is granted by **email address, in advance** — there is no
 Re-run the same file whenever staff change; it is safe to run repeatedly.
 Removing someone is two lines, documented at the bottom of the file.
 
+**"This staff account hasn't been activated yet" at login?** Run
+`supabase/who-is-staff.sql` — it lists every account that is staff, is
+trying to be, or is on the staff list, and says what is blocking each
+one. The usual cause is an account created before access moved to the
+email allowlist: it was left with `status = 'pending'`, waiting for a
+manual approval step that no longer exists. Putting that address in
+`add-staff.sql` and running it clears it.
+
+Note that fixing this by hand with `update public.profiles set status =
+'approved'` does *not* work on its own — the role guard reverts it, and
+reports success while doing so. `add-staff.sql` repairs that guard first,
+which is why it is the file to use.
+
 Two things that file also handles, which are easy to get wrong by hand:
 
 - **Promoting someone who already has an account.** The rule that reads
