@@ -94,10 +94,11 @@ export async function middleware(request) {
 }
 
 export const config = {
-  // Everything except Next's own build output, the favicon and files in
-  // /public. Those carry no student data, and excluding them keeps the
-  // auth check off every image request.
+  // Everything except Next's own build output, the favicon and the logo
+  // files in /public (logo.png, logo-color.png, logo-white.png). Those
+  // carry no student data, and excluding them keeps the auth check off
+  // every image request.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|logo.png|robots.txt|sitemap.xml).*)",
+    "/((?!_next/static|_next/image|favicon.ico|logo|robots.txt|sitemap.xml).*)",
   ],
 };
