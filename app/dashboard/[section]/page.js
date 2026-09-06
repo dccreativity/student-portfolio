@@ -7,6 +7,7 @@ import { getSectionMeta } from "@/lib/sectionSchema";
 import { getSectionBanner } from "@/lib/constants";
 import SectionEditor from "@/components/SectionEditor";
 import MediaGallery from "@/components/MediaGallery";
+import PhotoBackdrop from "@/components/PhotoBackdrop";
 
 export default function SectionPage() {
   const { section } = useParams();
@@ -30,26 +31,24 @@ export default function SectionPage() {
 
   return (
     <main className="p-6 md:p-10 max-w-3xl">
-      <div
-        className={`relative rounded-3xl overflow-hidden mb-8 h-28 bg-gradient-to-br ${banner.gradient}`}
+      <PhotoBackdrop
+        src={banner.image}
+        gradient={banner.gradient}
+        overlay="bg-gradient-to-r from-ink/75 via-ink/45 to-ink/20"
+        className="rounded-3xl mb-8 h-28"
       >
-        {banner.image && (
-          <img src={banner.image} alt="" className="absolute inset-0 w-full h-full object-cover" />
-        )}
-        <div className="relative h-full flex items-center gap-4 px-6">
-          <span className="grid place-items-center w-12 h-12 rounded-2xl bg-white/70 backdrop-blur text-xl shrink-0">
+        <div className="h-full flex items-center gap-4 px-6">
+          <span className="grid place-items-center w-12 h-12 rounded-2xl bg-white/85 text-xl shrink-0">
             {banner.icon}
           </span>
           <div className="min-w-0">
-            <h1 className="font-display text-2xl md:text-3xl leading-tight truncate">
+            <h1 className="font-display text-2xl md:text-3xl leading-tight truncate text-white">
               {meta.label}
             </h1>
-            <p className="text-sm text-ink/60">
-              Saved changes sync everywhere in real time.
-            </p>
+            <p className="text-sm text-white/70">Saved changes sync everywhere in real time.</p>
           </div>
         </div>
-      </div>
+      </PhotoBackdrop>
 
       {meta.type === "media" ? (
         <MediaGallery userId={userId} sectionKey={meta.key} mediaType={meta.mediaType} />

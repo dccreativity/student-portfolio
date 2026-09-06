@@ -1,14 +1,13 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Tailwind itself now comes from the CDN (see lib/tailwindCdn.js), so
+   there are no @tailwind directives here. What remains is the custom CSS
+   Tailwind never generated anyway: the ambient background. */
 
 html,
 body {
   color: #1c1b1a;
+  margin: 0;
 }
 
-/* The page ground is painted by .breathing-bg below, not by the body, so
-   a negative z-index layer is never hidden behind an opaque body. */
 body {
   background: #f6efe6;
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabaseClient";
 import { SECTION_SCHEMA } from "@/lib/sectionSchema";
 import { GRADE_OPTIONS, UNSPLASH_IMAGES } from "@/lib/constants";
+import PhotoBackdrop from "@/components/PhotoBackdrop";
 
 function isSectionFilled(meta, content) {
   if (!content) return false;
@@ -123,20 +124,19 @@ export default function DashboardOverview() {
 
   return (
     <main className="p-6 md:p-10 max-w-6xl">
-      <div className="relative rounded-3xl overflow-hidden mb-8 h-40 md:h-48 bg-gradient-to-br from-clay via-[#B4643C] to-ink">
-        <img
-          src={UNSPLASH_IMAGES.dashboardHero}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-ink/70 via-ink/30 to-transparent" />
-        <div className="relative h-full flex flex-col justify-end p-6 md:p-8">
+      <PhotoBackdrop
+        src={UNSPLASH_IMAGES.dashboardHero}
+        gradient="from-clay via-[#B4643C] to-ink"
+        overlay="bg-gradient-to-r from-ink/75 via-ink/35 to-transparent"
+        className="rounded-3xl mb-8 h-40 md:h-48"
+      >
+        <div className="h-full flex flex-col justify-end p-6 md:p-8">
           <p className="text-white/70 text-sm">Welcome back,</p>
           <h1 className="font-display text-3xl md:text-4xl text-white leading-tight">
             Your <span className="text-clayLight">journey.</span> Your story.
           </h1>
         </div>
-      </div>
+      </PhotoBackdrop>
 
       <div className="grid md:grid-cols-3 gap-6">
         <section className="md:col-span-2 bg-white/70 backdrop-blur border border-line rounded-3xl p-6">

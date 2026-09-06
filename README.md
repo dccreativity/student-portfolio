@@ -13,12 +13,74 @@ else is code.
 
 ### Run this SQL (Supabase → SQL Editor → New query → paste → Run)
 
-`supabase/migration-readonly-admin.sql`
+Two files, in this order, after the migrations you have already run
+(`migration-grade.sql`, `migration-admin-allowlist.sql`). Both are safe
+to re-run:
 
-Run it once, after the migrations you have already run
-(`migration-grade.sql`, `migration-admin-allowlist.sql`). It is safe to
-re-run. `supabase/media.sql` is now also safe to re-run, if you ever
-need to.
+1. `supabase/migration-readonly-admin.sql`
+2. `supabase/migration-private-files.sql`
+
+`supabase/media.sql` is now also safe to re-run, if you ever need to.
+
+### Nothing is reachable by URL without an account
+
+Two separate locks:
+
+- **Pages.** The middleware now denies by default. Only the landing page,
+  the chooser and the login / sign-up / verify screens are public;
+  *every* other URL — including any page added later — redirects to the
+  right login screen. Typing a URL straight into the address bar gets you
+  nowhere without a session, and you are returned to the page you wanted
+  after logging in.
+- **Files.** The storage bucket was public, which meant an uploaded
+  photo, PDF or certificate could be opened by anyone holding its link,
+  with no account at all. `migration-private-files.sql` makes the bucket
+  private and limits reads to the student who owns the file and to staff.
+  The app now serves files as short-lived signed links, minted per view.
+  Files uploaded before this keep working — the migration recovers their
+  storage paths, and the app recovers section attachments' paths from
+  their old URLs.
+
+### Tailwind now comes from the CDN
+
+As you asked. `lib/tailwindCdn.js` holds the CDN URL, the theme (colours,
+fonts, animations) and a small block of critical CSS; `app/layout.js`
+loads them as plain head tags, in the order the Play CDN needs — the CDN
+script first, then the config that depends on it. `tailwind.config.js`,
+the PostCSS Tailwind step and the `tailwindcss` dependency are gone.
+
+Two things to know, since this is now how your site gets its styling:
+
+- The CDN generates styles in the browser, so there is a brief moment on
+  first load before they appear. The critical CSS keeps that moment
+  looking like your site rather than a blank white page.
+- If `cdn.tailwindcss.com` is ever unreachable — a school network
+  blocking it, for instance — the site loses its styling. It degrades
+  quietly rather than erroring, but it will look plain. Tell me if you
+  ever see that and I will move it back to a compiled stylesheet.
+
+### The photographs you chose
+
+All five are wired in, from `PHOTOS` in `lib/constants.js`:
+
+| Photo | Where it appears |
+| --- | --- |
+| Graduates tossing caps | Login and sign-up panels; Header, Objective, Academic Awards, Picture Gallery banners |
+| Library shelves | Education, External Exams, Research banners |
+| Designer at work | Projects, Video Gallery, Skills banners |
+| People at computers | Internships, Administrative Work, Media Coverage banners |
+| Group on the stairs | Dashboard header; Leadership, Social Service, Non-Academic Awards, Summer Schools banners |
+
+Each sits over a palette gradient, so a slow or blocked image shows
+colour rather than a broken box.
+
+**If a photo doesn't appear on the live site:** I built these links from
+the photo IDs in the share URLs you sent, because this environment can't
+reach Unsplash to confirm them. Open the photo on unsplash.com,
+right-click the image, copy its address (it starts with
+`https://images.unsplash.com/photo-...`) and paste it into `PHOTOS` in
+`lib/constants.js` in place of the `unsplashPhoto(...)` call. Every photo
+on the site is chosen from that one block, so nothing else changes.
 
 ### Bugs that were stopping you
 
@@ -113,10 +175,8 @@ where the lines break.
 - The homepage carries the logo, the living background and **both doors —
   Student Login and Admin Login — as cards**, plus the Log in / Sign up
   link top right.
-- Every section has its own banner (icon + palette gradient). To use a
-  photograph instead, paste an Unsplash URL as the third entry for that
-  section in `SECTION_BANNERS` in `lib/constants.js` — there are
-  instructions in the file.
+- Every section has its own banner: an icon, a palette gradient and one
+  of your five photographs over it (see the table above).
 
 ### Already answered before, still true
 
@@ -126,13 +186,6 @@ where the lines break.
   immediately, rather than sending you to an OTP screen where no code
   ever arrives.
 - Nothing links `/login` to `/admin/login`, in either direction.
-
-**Note on Tailwind:** you asked for the Tailwind CDN. This project uses
-the same Tailwind, compiled at build time instead — identical classes and
-output, but it ships only the CSS actually used and needs no extra
-network request, so pages paint faster and cannot break if a CDN is
-blocked on the school network. If you specifically want the CDN version,
-say so and it is a small change.
 
 ## What's included
 
@@ -148,8 +201,8 @@ say so and it is a small change.
   Video Gallery, and Skills — each with real structured fields, not
   generic label/value boxes.
 - Real photo/video uploads for the two galleries, plus multi-file
-  attachments (image / PDF / document / video) on every other section
-  (Supabase Storage).
+  attachments (image / PDF / document / video) on every other section,
+  in a private Supabase Storage bucket served through signed links.
 - A Resume tab that compiles everything into a formatted, multi-page,
   downloadable PDF — for the student, and view-only for staff.
 - Profile-first dashboard with a live "Portfolio Completion" ring.
@@ -170,8 +223,10 @@ say so and it is a small change.
 1. Open your Supabase project → **SQL Editor** → New query → paste the
    contents of `supabase/schema.sql` → Run.
 2. New query → paste `supabase/auth-hook.sql` → Run.
-3. New query → paste `supabase/media.sql` → Run (adds the Storage bucket
-   and table the galleries and file attachments need).
+3. New query → paste `supabase/media.sql` → Run (adds the private Storage
+   bucket and the table the galleries and file attachments need).
+   Then run `supabase/migration-readonly-admin.sql` and
+   `supabase/migration-private-files.sql` in that order.
 4. **Authentication → Hooks** → enable **"Before User Created"** → select
    the function `restrict_signup_domain`.
 5. **Authentication → Providers → Email** → leave "Confirm email"
@@ -271,8 +326,5 @@ silently returning you to the form.
 - A public, read-only "share my portfolio" link for college applications.
 - A "recent updates" activity feed on the dashboard.
 - Email notifications to staff when a student updates their profile.
-- Private file storage with signed URLs. Today the storage bucket is
-  public, which means an uploaded file is reachable by anyone who has its
-  exact (long, random) URL, even though the database rows behind it are
-  locked down. Nobody can list or discover those URLs, but if you want
-  files sealed off completely as well, that is a contained follow-up.
+- Moving Tailwind back to a compiled stylesheet if the CDN ever proves
+  unreliable on the school network.

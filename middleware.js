@@ -1,9 +1,29 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 
-// Pages under /admin that must stay reachable while logged out, otherwise
-// staff can never create an account in the first place.
+// Deny by default: every route needs a session except the handful below,
+// which are the only pages someone must be able to reach in order to get
+// an account in the first place. Anything new added to the app is
+// therefore private unless it is deliberately listed here.
+const PUBLIC_PATHS = new Set([
+  "/", // landing page — carries both login doors
+  "/choose", // student vs staff chooser
+  "/login",
+  "/signup",
+  "/verify",
+  "/admin/login",
+  "/admin/signup",
+]);
+
+// Staff pages that must stay reachable while logged out.
 const PUBLIC_ADMIN_PATHS = ["/admin/login", "/admin/signup"];
+
+function isPublic(path) {
+  if (PUBLIC_PATHS.has(path)) return true;
+  // Tolerate a trailing slash without opening up anything deeper.
+  if (path.endsWith("/") && PUBLIC_PATHS.has(path.slice(0, -1))) return true;
+  return false;
+}
 
 export async function middleware(request) {
   let response = NextResponse.next({ request: { headers: request.headers } });
@@ -31,20 +51,23 @@ export async function middleware(request) {
   } = await supabase.auth.getUser();
 
   const path = request.nextUrl.pathname;
-  const isPublicAdminPath = PUBLIC_ADMIN_PATHS.some(
-    (p) => path === p || path.startsWith(`${p}/`)
-  );
-  const isDashboard = path.startsWith("/dashboard");
-  const isAdmin = path.startsWith("/admin") && !isPublicAdminPath;
+  const publicPath = isPublic(path);
+  const adminArea =
+    path.startsWith("/admin") && !PUBLIC_ADMIN_PATHS.some((p) => path === p);
 
-  if ((isDashboard || isAdmin) && !user) {
-    const redirectUrl = isAdmin ? "/admin/login" : "/login";
-    return NextResponse.redirect(new URL(redirectUrl, request.url));
+  // Not signed in and asking for anything private: send them to the right
+  // front door and remember where they were headed.
+  if (!user && !publicPath) {
+    const target = new URL(adminArea ? "/admin/login" : "/login", request.url);
+    if (!adminArea) target.searchParams.set("next", path);
+    return NextResponse.redirect(target);
   }
+
+  if (!user) return response;
 
   // One profile lookup serves both guards below.
   let profile = null;
-  if ((isAdmin || isDashboard) && user) {
+  if (adminArea || path.startsWith("/dashboard")) {
     const { data } = await supabase
       .from("profiles")
       .select("role, status")
@@ -53,16 +76,17 @@ export async function middleware(request) {
     profile = data;
   }
 
-  if (isAdmin && user) {
-    if (!profile || profile.role !== "admin" || profile.status !== "approved") {
-      return NextResponse.redirect(new URL("/admin/login?denied=1", request.url));
-    }
+  // Students can never reach the staff side, whatever URL they type.
+  if (adminArea && (!profile || profile.role !== "admin" || profile.status !== "approved")) {
+    return NextResponse.redirect(new URL("/admin/login?denied=1", request.url));
   }
 
-  // A student who somehow reaches the admin area is bounced out above.
-  // The reverse guard: a staff account has no portfolio of its own to
-  // edit, so send it to the admin dashboard instead of an empty one.
-  if (isDashboard && profile?.role === "admin" && profile?.status === "approved") {
+  // A staff account has no portfolio of its own to edit.
+  if (
+    path.startsWith("/dashboard") &&
+    profile?.role === "admin" &&
+    profile?.status === "approved"
+  ) {
     return NextResponse.redirect(new URL("/admin/dashboard", request.url));
   }
 
@@ -70,5 +94,10 @@ export async function middleware(request) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admin/:path*"],
+  // Everything except Next's own build output, the favicon and files in
+  // /public. Those carry no student data, and excluding them keeps the
+  // auth check off every image request.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|logo.png|robots.txt|sitemap.xml).*)",
+  ],
 };

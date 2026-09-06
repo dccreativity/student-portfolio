@@ -4,9 +4,11 @@
 -- Safe to re-run: every policy is dropped first.
 -- =========================================================
 
+-- Private on purpose: nothing in this bucket is reachable by URL without
+-- a session. The app hands out short-lived signed links instead.
 insert into storage.buckets (id, name, public)
-values ('portfolio-media', 'portfolio-media', true)
-on conflict (id) do nothing;
+values ('portfolio-media', 'portfolio-media', false)
+on conflict (id) do update set public = false;
 
 -- Every object path starts with the uploader's own user id
 -- (<user_id>/<section>/<timestamp>-<file>), which is what these policies
@@ -35,10 +37,19 @@ using (
   and auth.uid()::text = (storage.foldername(name))[1]
 );
 
+-- A student reads their own files; staff read any student's files. Nobody
+-- else, signed in or not, can read anything here.
 drop policy if exists "media_read_all" on storage.objects;
-create policy "media_read_all"
+drop policy if exists "media_read_own_or_admin" on storage.objects;
+create policy "media_read_own_or_admin"
 on storage.objects for select
-using (bucket_id = 'portfolio-media');
+using (
+  bucket_id = 'portfolio-media'
+  and (
+    auth.uid()::text = (storage.foldername(name))[1]
+    or public.is_admin()
+  )
+);
 
 create table if not exists public.portfolio_media (
   id bigint generated always as identity primary key,

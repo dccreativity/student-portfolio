@@ -6,6 +6,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabaseClient";
 import { ALLOWED_EMAIL_DOMAIN, isAllowedSchoolEmail, GRADE_OPTIONS, UNSPLASH_IMAGES } from "@/lib/constants";
 import Logo from "@/components/Logo";
+import PhotoBackdrop from "@/components/PhotoBackdrop";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -59,26 +60,23 @@ export default function SignupPage() {
       return;
     }
 
-    router.push(`/verify?email=${encodeURIComponent(email)}&next=/dashboard`);
+    router.push(`/verify?email=${encodeURIComponent(email)}&next=%2Fdashboard`);
   }
 
   return (
     <main className="min-h-screen grid lg:grid-cols-2 bg-cream">
-      {/* The gradient is the real background; the photograph sits on top of
-          it, so a slow or blocked image never leaves an empty panel. */}
-      <div className="hidden lg:block relative bg-gradient-to-br from-clay via-[#B4643C] to-ink">
-        <img
-          src={UNSPLASH_IMAGES.authHero}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-ink/40" />
-        <div className="relative h-full flex flex-col justify-end p-12 text-white">
+      <PhotoBackdrop
+        src={UNSPLASH_IMAGES.authHero}
+        gradient="from-clay via-[#B4643C] to-ink"
+        overlay="bg-ink/45"
+        className="hidden lg:block"
+      >
+        <div className="h-full flex flex-col justify-end p-12 text-white">
           <p className="font-display text-4xl leading-tight max-w-md">
             Every achievement, every story — one place to tell it.
           </p>
         </div>
-      </div>
+      </PhotoBackdrop>
 
       <div className="flex items-center justify-center px-6 py-16">
         <div className="w-full max-w-md">

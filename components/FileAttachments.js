@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabaseClient";
 import {
   ACCEPT_ANY,
@@ -8,6 +8,7 @@ import {
   fileKind,
   formatBytes,
   removePortfolioFile,
+  signAttachments,
   uploadPortfolioFile,
 } from "@/lib/uploads";
 
@@ -27,6 +28,22 @@ export default function FileAttachments({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [progress, setProgress] = useState("");
+
+  // The bucket is private, so a stored link isn't usable on its own —
+  // mint a fresh signed one for each file whenever this list changes.
+  const [links, setLinks] = useState(attachments);
+  useEffect(() => {
+    let cancelled = false;
+    setLinks(attachments);
+    if (attachments.length === 0) return undefined;
+    signAttachments(supabase, attachments).then((signed) => {
+      if (!cancelled) setLinks(signed);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // Re-sign when the set of files changes, not on every render.
+  }, [JSON.stringify(attachments.map((a) => a.path || a.url))]);
 
   async function handleFiles(e) {
     const files = Array.from(e.target.files || []);
@@ -69,9 +86,9 @@ export default function FileAttachments({
 
   return (
     <div className="mt-3">
-      {attachments.length > 0 && (
+      {links.length > 0 && (
         <ul className="flex flex-wrap gap-2 mb-2">
-          {attachments.map((a, i) => {
+          {links.map((a, i) => {
             const kind = a.kind || fileKind(a.type || a.name || "");
             return (
               <li

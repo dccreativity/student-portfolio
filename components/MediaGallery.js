@@ -2,7 +2,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabaseClient";
-import { formatBytes, MAX_FILE_BYTES, uploadPortfolioFile } from "@/lib/uploads";
+import {
+  BUCKET,
+  formatBytes,
+  MAX_FILE_BYTES,
+  signPaths,
+  storagePathOf,
+  uploadPortfolioFile,
+} from "@/lib/uploads";
 
 // `readOnly` is used by the admin's per-student view — admins can browse
 // a student's galleries but never upload, edit captions, or delete.
@@ -26,7 +33,18 @@ export default function MediaGallery({ userId, sectionKey, mediaType, readOnly =
         .eq("user_id", userId)
         .eq("section", sectionKey)
         .order("created_at", { ascending: false });
-      if (!cancelled) setItems(data || []);
+
+      const rows = data || [];
+      // The bucket is private: every row needs a freshly signed link
+      // before it can be shown.
+      const map = await signPaths(supabase, rows.map(storagePathOf));
+      if (cancelled) return;
+      setItems(
+        rows.map((r) => {
+          const path = storagePathOf(r);
+          return { ...r, view_url: (path && map.get(path)) || r.file_url };
+        })
+      );
     }
 
     load();
@@ -70,6 +88,8 @@ export default function MediaGallery({ userId, sectionKey, mediaType, readOnly =
         const { error: insertError } = await supabase.from("portfolio_media").insert({
           user_id: userId,
           section: sectionKey,
+          // file_url is kept for older rows' sake; storage_path is what
+          // actually resolves the file now that the bucket is private.
           file_url: uploaded.url,
           storage_path: uploaded.path,
           caption: "",
@@ -114,9 +134,8 @@ export default function MediaGallery({ userId, sectionKey, mediaType, readOnly =
     }
     // Free the storage object too, so removed files don't keep counting
     // against the project's quota.
-    if (item.storage_path) {
-      await supabase.storage.from("portfolio-media").remove([item.storage_path]);
-    }
+    const path = storagePathOf(item);
+    if (path) await supabase.storage.from(BUCKET).remove([path]);
   }
 
   const noun = mediaType === "image" ? "photo" : "video";
@@ -155,12 +174,12 @@ export default function MediaGallery({ userId, sectionKey, mediaType, readOnly =
           <div key={item.id} className="rounded-2xl border border-line bg-white/70 overflow-hidden">
             {mediaType === "image" ? (
               <img
-                src={item.file_url}
+                src={item.view_url}
                 alt={item.caption || ""}
                 className="w-full h-40 object-cover"
               />
             ) : (
-              <video src={item.file_url} controls className="w-full h-40 object-cover bg-black" />
+              <video src={item.view_url} controls className="w-full h-40 object-cover bg-black" />
             )}
             <div className="p-3 space-y-2">
               {readOnly ? (
