@@ -64,7 +64,9 @@ export default function SignupPage() {
 
   return (
     <main className="min-h-screen grid lg:grid-cols-2 bg-cream">
-      <div className="hidden lg:block relative">
+      {/* The gradient is the real background; the photograph sits on top of
+          it, so a slow or blocked image never leaves an empty panel. */}
+      <div className="hidden lg:block relative bg-gradient-to-br from-clay via-[#B4643C] to-ink">
         <img
           src={UNSPLASH_IMAGES.authHero}
           alt=""

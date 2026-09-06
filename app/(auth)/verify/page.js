@@ -58,7 +58,7 @@ function VerifyForm() {
         return;
       }
     }
-    router.push(next);
+    window.location.assign(next);
   }
 
   async function handleResend() {

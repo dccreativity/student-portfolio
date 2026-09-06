@@ -60,9 +60,11 @@ export default function AdminSignupPage() {
     <main className="min-h-screen flex items-center justify-center bg-cream px-6">
       <div className="w-full max-w-md bg-white/70 backdrop-blur-xl border border-line rounded-3xl p-8 shadow-sm">
         <Logo className="h-9 mb-6" />
-        <h1 className="font-display text-3xl mb-2">Request staff access</h1>
+        <h1 className="font-display text-3xl mb-2">Staff account</h1>
         <p className="text-sm text-neutral-600 mb-6">
-          A super admin will need to approve your account before you can log in.
+          Staff access is granted by email in advance. Use the exact address
+          your school registered — anything else becomes an ordinary student
+          account, with no access to other students' data.
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -116,12 +118,12 @@ export default function AdminSignupPage() {
             disabled={loading}
             className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-black transition disabled:opacity-60"
           >
-            {loading ? "Submitting…" : "Request access"}
+            {loading ? "Creating account…" : "Create staff account"}
           </button>
         </form>
 
         <p className="text-sm text-neutral-600 mt-6">
-          Already approved?{" "}
+          Already have a staff account?{" "}
           <Link href="/admin/login" className="text-clay font-medium">
             Log in
           </Link>

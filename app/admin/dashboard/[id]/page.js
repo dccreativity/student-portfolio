@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabaseClient";
 import { SECTION_SCHEMA } from "@/lib/sectionSchema";
+import { getSectionBanner } from "@/lib/constants";
 import { buildResumeModel } from "@/lib/resumeData";
 import { downloadResumePdf } from "@/lib/generateResumePdf";
 import SectionEditor from "@/components/SectionEditor";
@@ -93,14 +94,27 @@ export default function AdminStudentView() {
               </button>
             </div>
             {resumeModel ? (
-              <ResumePreview profile={resumeModel.profile} sections={resumeModel.sections} />
+              <ResumePreview
+                profile={resumeModel.profile}
+                sections={resumeModel.sections}
+                header={resumeModel.header}
+              />
             ) : (
               <p className="text-neutral-500">Loading…</p>
             )}
           </section>
         ) : (
           <section className="bg-white/70 border border-line rounded-3xl p-6">
-            <h2 className="font-medium mb-4">{meta.label}</h2>
+            <div
+              className={`rounded-2xl h-16 mb-5 flex items-center gap-3 px-4 bg-gradient-to-br ${
+                getSectionBanner(meta.key).gradient
+              }`}
+            >
+              <span className="grid place-items-center w-9 h-9 rounded-xl bg-white/70 text-base">
+                {getSectionBanner(meta.key).icon}
+              </span>
+              <h2 className="font-display text-lg">{meta.label}</h2>
+            </div>
             {meta.type === "media" ? (
               <MediaGallery userId={id} sectionKey={meta.key} mediaType={meta.mediaType} readOnly />
             ) : (

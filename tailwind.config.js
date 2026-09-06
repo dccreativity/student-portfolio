@@ -3,6 +3,9 @@ module.exports = {
   content: [
     "./app/**/*.{js,jsx}",
     "./components/**/*.{js,jsx}",
+    // The per-section banner gradients are declared as complete class
+    // strings in lib/constants.js, so Tailwind has to scan lib/ too.
+    "./lib/**/*.{js,jsx}",
   ],
   theme: {
     extend: {
@@ -15,8 +18,8 @@ module.exports = {
         line: "#E4D9C8",
       },
       fontFamily: {
-        display: ["'Bricolage Grotesque'", "sans-serif"],
-        body: ["'Inter'", "sans-serif"],
+        display: ["var(--font-display)", "'Bricolage Grotesque'", "system-ui", "sans-serif"],
+        body: ["var(--font-body)", "'Instrument Sans'", "system-ui", "sans-serif"],
       },
       keyframes: {
         breathe: {

@@ -26,24 +26,32 @@ export default function LoginPage() {
       password,
     });
 
-    setLoading(false);
-
     if (signInError) {
+      setLoading(false);
       if (signInError.message.toLowerCase().includes("email not confirmed")) {
         router.push(`/verify?email=${encodeURIComponent(email)}`);
         return;
       }
-      setError(signInError.message);
+      setError(
+        /invalid login credentials/i.test(signInError.message)
+          ? "That email and password don't match an account. Check both, or create an account below."
+          : signInError.message
+      );
       return;
     }
 
-    router.push("/dashboard");
-    router.refresh();
+    // A hard navigation rather than router.push: the auth cookie is
+    // written by the browser client, and a client-side transition can
+    // reach the middleware before that cookie is readable — which is the
+    // classic Supabase + Next "logs in, bounces back to login" loop.
+    window.location.assign("/dashboard");
   }
 
   return (
     <main className="min-h-screen grid lg:grid-cols-2 bg-cream">
-      <div className="hidden lg:block relative">
+      {/* The gradient is the real background; the photograph sits on top of
+          it, so a slow or blocked image never leaves an empty panel. */}
+      <div className="hidden lg:block relative bg-gradient-to-br from-clay via-[#B4643C] to-ink">
         <img
           src={UNSPLASH_IMAGES.authHero}
           alt=""

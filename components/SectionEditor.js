@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabaseClient";
 import { getSectionMeta } from "@/lib/sectionSchema";
-
-const BUCKET = "portfolio-media";
+import { attachmentsOf, withAttachments } from "@/lib/uploads";
+import FileAttachments from "@/components/FileAttachments";
 
 function emptyEntry(fields) {
   const e = {};
@@ -41,91 +41,18 @@ function FieldInput({ field, value, onChange, readOnly }) {
   );
 }
 
-// Every entry in a repeatable section can carry one supporting file —
-// a certificate photo, an award PDF, a project demo video, etc. Stored
-// in the same Storage bucket the galleries use, so no new bucket/policy
-// is needed: the path still starts with the student's own user id.
-function AttachmentSlot({ entry, onAttach, onRemove, userId, pathPrefix, readOnly }) {
-  const supabase = createClient();
-  const fileInput = useRef(null);
-  const [uploading, setUploading] = useState(false);
-
-  async function handleFile(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-
-    const path = `${userId}/${pathPrefix}/${Date.now()}-${file.name}`;
-    const { error } = await supabase.storage.from(BUCKET).upload(path, file);
-    setUploading(false);
-    if (error) {
-      alert(`Upload failed: ${error.message}`);
-      return;
-    }
-    const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-    onAttach(data.publicUrl, file.name);
-    if (fileInput.current) fileInput.current.value = "";
-  }
-
-  if (readOnly) {
-    if (!entry.attachment_url) return null;
-    return (
-      <a
-        href={entry.attachment_url}
-        target="_blank"
-        rel="noreferrer"
-        className="inline-flex items-center gap-1 text-xs text-clay underline mt-2"
-      >
-        📎 {entry.attachment_name || "View attachment"}
-      </a>
-    );
-  }
-
-  return (
-    <div className="mt-2">
-      {entry.attachment_url ? (
-        <div className="flex items-center gap-2 text-xs text-neutral-600">
-          <a href={entry.attachment_url} target="_blank" rel="noreferrer" className="text-clay underline">
-            📎 {entry.attachment_name || "Attachment"}
-          </a>
-          <button onClick={onRemove} className="text-neutral-400 hover:text-red-600">
-            Remove
-          </button>
-        </div>
-      ) : (
-        <label className="inline-block text-xs text-clay font-medium cursor-pointer">
-          {uploading ? "Uploading…" : "+ Attach file (image, PDF, or video)"}
-          <input
-            ref={fileInput}
-            type="file"
-            accept="image/*,video/*,application/pdf"
-            onChange={handleFile}
-            disabled={uploading}
-            className="hidden"
-          />
-        </label>
-      )}
-    </div>
-  );
-}
-
 function RepeatableTable({ fields, entries, onChange, readOnly, userId, pathPrefix }) {
-  function update(i, key, value) {
-    onChange(entries.map((e, idx) => (idx === i ? { ...e, [key]: value } : e)));
+  function update(i, changes) {
+    onChange(entries.map((e, idx) => (idx === i ? { ...e, ...changes } : e)));
+  }
+  function replaceEntry(i, next) {
+    onChange(entries.map((e, idx) => (idx === i ? next : e)));
   }
   function add() {
     onChange([...entries, emptyEntry(fields)]);
   }
   function remove(i) {
     onChange(entries.filter((_, idx) => idx !== i));
-  }
-  function attachFile(i, url, name) {
-    update(i, "attachment_url", url);
-    update(i, "attachment_name", name);
-  }
-  function removeAttachment(i) {
-    update(i, "attachment_url", "");
-    update(i, "attachment_name", "");
   }
 
   if (readOnly && entries.length === 0) {
@@ -138,6 +65,7 @@ function RepeatableTable({ fields, entries, onChange, readOnly, userId, pathPref
         <div key={i} className="rounded-2xl border border-line bg-cream/50 p-4 relative">
           {!readOnly && (
             <button
+              type="button"
               onClick={() => remove(i)}
               className="absolute top-3 right-3 text-neutral-400 hover:text-red-600"
               aria-label="Remove entry"
@@ -152,24 +80,27 @@ function RepeatableTable({ fields, entries, onChange, readOnly, userId, pathPref
                 <FieldInput
                   field={f}
                   value={entry[f.key] ?? ""}
-                  onChange={(v) => update(i, f.key, v)}
+                  onChange={(v) => update(i, { [f.key]: v })}
                   readOnly={readOnly}
                 />
               </div>
             ))}
           </div>
-          <AttachmentSlot
-            entry={entry}
-            onAttach={(url, name) => attachFile(i, url, name)}
-            onRemove={() => removeAttachment(i)}
+          <FileAttachments
+            attachments={attachmentsOf(entry)}
+            // Replace the whole entry in one call. Two chained updates
+            // would both read the same stale entries array, which is what
+            // used to silently drop the uploaded file's URL.
+            onChange={(next) => replaceEntry(i, withAttachments(entry, next))}
             userId={userId}
             pathPrefix={pathPrefix}
             readOnly={readOnly}
+            label="Attach proof / evidence"
           />
         </div>
       ))}
       {!readOnly && (
-        <button onClick={add} className="text-sm text-clay font-medium">
+        <button type="button" onClick={add} className="text-sm text-clay font-medium">
           + Add entry
         </button>
       )}
@@ -186,10 +117,40 @@ export default function SectionEditor({ userId, sectionKey, readOnly = false }) 
 
   const [content, setContent] = useState(null);
   const [status, setStatus] = useState("");
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Read inside the realtime callback without re-subscribing on every
+  // keystroke.
+  const dirtyRef = useRef(false);
+  dirtyRef.current = dirty;
+
+  // The realtime stream echoes our own save straight back. Remember what
+  // we last wrote so that echo doesn't get reported as someone else's
+  // edit a second after the student pressed Save.
+  const lastSavedRef = useRef(null);
+
+  const edit = useCallback((updater) => {
+    setContent((prev) => (typeof updater === "function" ? updater(prev) : updater));
+    setDirty(true);
+    setStatus("");
+  }, []);
 
   useEffect(() => {
     let channel;
+    let cancelled = false;
+
+    function defaultContent() {
+      if (meta.type === "single") return {};
+      if (meta.type === "repeatable") return { entries: [] };
+      if (meta.type === "mixed") {
+        const base = {};
+        meta.repeatableGroups.forEach((g) => (base[g.key] = []));
+        return base;
+      }
+      return {};
+    }
 
     async function load() {
       const { data: row } = await supabase
@@ -199,7 +160,9 @@ export default function SectionEditor({ userId, sectionKey, readOnly = false }) 
         .eq("section", sectionKey)
         .maybeSingle();
 
+      if (cancelled) return;
       setContent(row?.content ?? defaultContent());
+      setDirty(false);
       setLoading(false);
 
       channel = supabase
@@ -213,35 +176,47 @@ export default function SectionEditor({ userId, sectionKey, readOnly = false }) 
             filter: `user_id=eq.${userId}`,
           },
           (payload) => {
-            const row = payload.new;
-            if (!row || row.section !== sectionKey) return;
-            setContent(row.content);
+            const changed = payload.new;
+            if (!changed || changed.section !== sectionKey) return;
+            if (JSON.stringify(changed.content) === lastSavedRef.current) return;
+            // Never clobber what the student is part-way through typing —
+            // their own unsaved work outranks an echo from another tab.
+            if (dirtyRef.current) {
+              setStatus("This section changed in another tab. Save to keep your version.");
+              return;
+            }
+            setContent(changed.content);
             setStatus("Updated elsewhere — synced.");
-            setTimeout(() => setStatus(""), 2000);
+            setTimeout(() => setStatus(""), 2500);
           }
         )
         .subscribe();
     }
 
-    function defaultContent() {
-      if (meta.type === "single") return {};
-      if (meta.type === "repeatable") return { entries: [] };
-      if (meta.type === "mixed") {
-        const base = {};
-        meta.repeatableGroups.forEach((g) => (base[g.key] = []));
-        return base;
-      }
-      return {};
-    }
-
     load();
     return () => {
+      cancelled = true;
       if (channel) supabase.removeChannel(channel);
     };
   }, [sectionKey, userId]);
 
+  // Browsers only show their own generic prompt, but it is enough to stop
+  // a student losing a long entry by closing the tab before saving.
+  useEffect(() => {
+    if (readOnly) return undefined;
+    function warn(e) {
+      if (!dirtyRef.current) return;
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [readOnly]);
+
   async function handleSave() {
+    setSaving(true);
     setStatus("Saving…");
+    lastSavedRef.current = JSON.stringify(content);
     const { error } = await supabase.from("portfolio_data").upsert(
       {
         user_id: userId,
@@ -251,11 +226,20 @@ export default function SectionEditor({ userId, sectionKey, readOnly = false }) 
       },
       { onConflict: "user_id,section" }
     );
-    setStatus(error ? `Error: ${error.message}` : "Saved ✓");
-    setTimeout(() => setStatus(""), 2000);
+    setSaving(false);
+
+    if (error) {
+      setStatus(`Couldn't save: ${error.message}`);
+      return;
+    }
+    setDirty(false);
+    setStatus("Saved ✓");
+    setTimeout(() => setStatus((s) => (s === "Saved ✓" ? "" : s)), 2500);
   }
 
   if (loading || !content) return <p className="text-neutral-500">Loading…</p>;
+
+  const sectionAttachments = Array.isArray(content.attachments) ? content.attachments : [];
 
   return (
     <div>
@@ -271,7 +255,7 @@ export default function SectionEditor({ userId, sectionKey, readOnly = false }) 
               <FieldInput
                 field={f}
                 value={content[f.key] ?? ""}
-                onChange={(v) => setContent({ ...content, [f.key]: v })}
+                onChange={(v) => edit((prev) => ({ ...prev, [f.key]: v }))}
                 readOnly={readOnly}
               />
             </div>
@@ -283,7 +267,7 @@ export default function SectionEditor({ userId, sectionKey, readOnly = false }) 
         <RepeatableTable
           fields={meta.fields}
           entries={content.entries || []}
-          onChange={(entries) => setContent({ ...content, entries })}
+          onChange={(entries) => edit((prev) => ({ ...prev, entries }))}
           readOnly={readOnly}
           userId={userId}
           pathPrefix={sectionKey}
@@ -299,7 +283,7 @@ export default function SectionEditor({ userId, sectionKey, readOnly = false }) 
                 <FieldInput
                   field={f}
                   value={content[f.key] ?? ""}
-                  onChange={(v) => setContent({ ...content, [f.key]: v })}
+                  onChange={(v) => edit((prev) => ({ ...prev, [f.key]: v }))}
                   readOnly={readOnly}
                 />
               </div>
@@ -312,7 +296,7 @@ export default function SectionEditor({ userId, sectionKey, readOnly = false }) 
               <RepeatableTable
                 fields={group.fields}
                 entries={content[group.key] || []}
-                onChange={(entries) => setContent({ ...content, [group.key]: entries })}
+                onChange={(entries) => edit((prev) => ({ ...prev, [group.key]: entries }))}
                 readOnly={readOnly}
                 userId={userId}
                 pathPrefix={`${sectionKey}-${group.key}`}
@@ -322,14 +306,38 @@ export default function SectionEditor({ userId, sectionKey, readOnly = false }) 
         </div>
       )}
 
+      {/* Section-level files. Repeatable sections attach evidence per
+          entry above; the single/mixed sections (Header, Objective,
+          Education) had no upload option at all before this. */}
+      {(meta.type === "single" || meta.type === "mixed") && (
+        <div className="mt-6 border-t border-line pt-4">
+          <p className="text-xs text-neutral-500">Supporting documents</p>
+          <FileAttachments
+            attachments={sectionAttachments}
+            onChange={(next) => edit((prev) => ({ ...prev, attachments: next }))}
+            userId={userId}
+            pathPrefix={sectionKey}
+            readOnly={readOnly}
+            label="Attach files"
+          />
+        </div>
+      )}
+
       {!readOnly && (
-        <div className="flex items-center gap-4 mt-8">
+        <div className="sticky bottom-0 -mx-6 md:-mx-0 mt-8 bg-cream/85 backdrop-blur border-t border-line px-6 md:px-0 py-4 flex flex-wrap items-center gap-4">
           <button
+            type="button"
             onClick={handleSave}
-            className="rounded-xl bg-ink text-white px-5 py-2.5 text-sm font-medium hover:bg-black transition"
+            disabled={saving || !dirty}
+            className="rounded-xl bg-ink text-white px-5 py-2.5 text-sm font-medium hover:bg-black transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            Save changes
+            {saving ? "Saving…" : dirty ? "Save changes" : "Saved"}
           </button>
+          {dirty && !saving && (
+            <span className="text-sm text-clay font-medium">
+              You have unsaved changes in this section.
+            </span>
+          )}
           {status && <span className="text-sm text-neutral-500">{status}</span>}
         </div>
       )}
