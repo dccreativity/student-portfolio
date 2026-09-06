@@ -13,6 +13,14 @@ else is code.
 
 ### Run this SQL (Supabase → SQL Editor → New query → paste → Run)
 
+**None of this is applied to your Supabase project yet.** These are files
+in the repo; Vercel deploys the app code automatically, but nothing can
+reach your database except you, pasting SQL into the SQL Editor.
+
+Not sure what you have already run? Paste `supabase/check-setup.sql` and
+hit Run. It changes nothing and returns a checklist of what is in place
+and which file to run for anything that is not.
+
 Two files, in this order, after the migrations you have already run
 (`migration-grade.sql`, `migration-admin-allowlist.sql`). Both are safe
 to re-run:
