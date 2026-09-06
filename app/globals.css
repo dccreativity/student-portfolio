@@ -1,64 +1,118 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=Inter:wght@400;500;600;700&display=swap");
+/* Tailwind itself now comes from the CDN (see lib/tailwindCdn.js), so
+   there are no @tailwind directives here. What remains is the custom CSS
+   Tailwind never generated anyway: the ambient background. */
 
 html,
 body {
-  background: #f6efe6;
   color: #1c1b1a;
+  margin: 0;
 }
 
-/* Ambient "breathing" background used behind the auth screens and the
-   dashboard hero. Two soft blurred blobs that slowly scale and drift.
-   Respects reduced-motion preferences. */
+body {
+  background: #f6efe6;
+}
+
+/* ---------------------------------------------------------------
+   Ambient "breathing" background.
+
+   Sits at z-index 0 inside a fixed, non-interactive layer with the page
+   content stacked above it, rather than at a negative z-index — a
+   negative-z child paints *behind* its parent's background, which is
+   what previously made this invisible.
+
+   Three soft blurred blobs slowly scale, drift and shift hue, so the
+   colour itself keeps moving instead of sitting still.
+   --------------------------------------------------------------- */
 .breathing-bg {
   position: fixed;
   inset: 0;
-  z-index: -1;
+  z-index: 0;
   overflow: hidden;
   pointer-events: none;
+  background: linear-gradient(160deg, #f8f2e9 0%, #f6efe6 45%, #f3e9dd 100%);
 }
 
 .breathing-bg span {
   position: absolute;
   border-radius: 9999px;
   filter: blur(90px);
+  will-change: transform, opacity;
 }
 
 .breathing-bg .blob-1 {
-  width: 46vw;
-  height: 46vw;
-  top: -10%;
-  left: -8%;
-  background: radial-gradient(circle at 30% 30%, #f2b694, transparent 70%);
-  animation: breathe 10s ease-in-out infinite;
+  width: 52vw;
+  height: 52vw;
+  top: -14%;
+  left: -10%;
+  background: radial-gradient(circle at 30% 30%, #f2b694 0%, rgba(242, 182, 148, 0) 70%);
+  animation: breathe 11s ease-in-out infinite;
 }
 
 .breathing-bg .blob-2 {
-  width: 38vw;
-  height: 38vw;
-  bottom: -12%;
-  right: -6%;
-  background: radial-gradient(circle at 60% 60%, #cbb8e8, transparent 70%);
-  animation: breatheSlow 14s ease-in-out infinite;
+  width: 44vw;
+  height: 44vw;
+  bottom: -16%;
+  right: -8%;
+  background: radial-gradient(circle at 60% 60%, #cbb8e8 0%, rgba(203, 184, 232, 0) 70%);
+  animation: breatheSlow 15s ease-in-out infinite;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .breathing-bg span {
-    animation: none !important;
+.breathing-bg .blob-3 {
+  width: 40vw;
+  height: 40vw;
+  top: 32%;
+  left: 42%;
+  background: radial-gradient(circle at 50% 50%, #e07a45 0%, rgba(224, 122, 69, 0) 68%);
+  opacity: 0.35;
+  animation: breatheDrift 19s ease-in-out infinite;
+}
+
+/* Everything that isn't the background layer sits above it. */
+.breathing-bg ~ * {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(1) translate(0, 0);
+    opacity: 0.55;
   }
-  .breathing-bg-hue {
-    animation: none !important;
+  50% {
+    transform: scale(1.12) translate(2%, -2%);
+    opacity: 0.85;
   }
 }
 
-/* Extra "alive" color-cycling layer used on the landing/chooser screens,
-   on top of the drifting blobs above — a slow hue rotation so the palette
-   itself keeps gently shifting rather than staying static. */
+@keyframes breatheSlow {
+  0%,
+  100% {
+    transform: scale(1.06) translate(0, 0);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scale(0.94) translate(-3%, 2%);
+    opacity: 0.7;
+  }
+}
+
+@keyframes breatheDrift {
+  0%,
+  100% {
+    transform: scale(0.9) translate(-6%, 4%);
+    opacity: 0.22;
+  }
+  50% {
+    transform: scale(1.15) translate(6%, -5%);
+    opacity: 0.45;
+  }
+}
+
+/* Slow hue rotation on the whole layer, so the palette itself keeps
+   shifting and the page reads as alive rather than static. */
 .breathing-bg-hue {
-  animation: hueshift 24s ease-in-out infinite;
+  animation: hueshift 26s ease-in-out infinite;
 }
 
 @keyframes hueshift {
@@ -66,7 +120,17 @@ body {
   100% {
     filter: hue-rotate(0deg);
   }
-  50% {
-    filter: hue-rotate(18deg);
+  33% {
+    filter: hue-rotate(-12deg);
+  }
+  66% {
+    filter: hue-rotate(16deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .breathing-bg span,
+  .breathing-bg-hue {
+    animation: none !important;
   }
 }

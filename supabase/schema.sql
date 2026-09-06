@@ -36,8 +36,23 @@ create table if not exists public.portfolio_data (
 alter table public.portfolio_data enable row level security;
 
 -- Required for Supabase Realtime to stream row changes to the dashboard.
-alter publication supabase_realtime add table public.portfolio_data;
-alter publication supabase_realtime add table public.profiles;
+-- Wrapped so this file stays safe to re-run once the tables are already
+-- part of the publication.
+do $$
+begin
+  alter publication supabase_realtime add table public.portfolio_data;
+exception
+  when duplicate_object then null;
+end;
+$$;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.profiles;
+exception
+  when duplicate_object then null;
+end;
+$$;
 
 -- ---------- helper: is_admin() ----------
 -- security definer so it can read `profiles` without recursing through
@@ -101,7 +116,7 @@ security definer
 set search_path = public
 as $$
 begin
-  if (new.role <> old.role or new.status <> old.status) and not public.is_admin() then
+  if new.role is distinct from old.role or new.status is distinct from old.status then
     new.role := old.role;
     new.status := old.status;
   end if;
@@ -127,35 +142,45 @@ drop policy if exists profiles_update_own on public.profiles;
 create policy profiles_update_own on public.profiles
   for update using (auth.uid() = id) with check (auth.uid() = id);
 
+-- Deliberately absent: there is no admin UPDATE policy. Admins are
+-- read-only across the whole app, so staff can never change a student's
+-- profile. Promoting staff is done via public.admin_allowlist below.
 drop policy if exists profiles_update_admin on public.profiles;
-create policy profiles_update_admin on public.profiles
-  for update using (public.is_admin());
 
 -- ---------- RLS: portfolio_data ----------
 drop policy if exists portfolio_select on public.portfolio_data;
 create policy portfolio_select on public.portfolio_data
   for select using (auth.uid() = user_id or public.is_admin());
 
+-- Writes are owner-only. Admins appear in the SELECT policy above and
+-- nowhere else, which is what makes "view but never edit or delete"
+-- true in the database rather than only in the UI.
 drop policy if exists portfolio_insert on public.portfolio_data;
 create policy portfolio_insert on public.portfolio_data
-  for insert with check (auth.uid() = user_id or public.is_admin());
+  for insert with check (auth.uid() = user_id);
 
 drop policy if exists portfolio_update on public.portfolio_data;
 create policy portfolio_update on public.portfolio_data
-  for update using (auth.uid() = user_id or public.is_admin());
+  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 drop policy if exists portfolio_delete on public.portfolio_data;
 create policy portfolio_delete on public.portfolio_data
-  for delete using (auth.uid() = user_id or public.is_admin());
+  for delete using (auth.uid() = user_id);
 
--- ---------- seed the first super admin ----------
--- 1. Sign up normally through the app with your own school email, WITH the
---    "I'm school staff requesting administrator access" box checked.
--- 2. Verify your email with the OTP code as usual.
--- 3. Then run this (replace the email) to approve yourself as the first
---    super admin — every admin approved after this can be approved from
---    the admin dashboard UI instead of SQL:
+-- ---------- authorising school staff ----------
+-- Admin access is granted by email, before the person ever signs up.
+-- Add each staff member here, then have them create their account at
+-- /admin/signup with that exact address:
 --
--- update public.profiles
---    set role = 'admin', status = 'approved'
---    where email = 'you@adaniinternational.edu.in';
+-- insert into public.admin_allowlist (email) values
+--   ('principal@adaniinternational.edu.in'),
+--   ('counselor@adaniinternational.edu.in')
+-- on conflict (email) do nothing;
+--
+-- Anyone who signs up at /admin/signup with an email that is NOT on this
+-- list silently becomes an ordinary student account instead, so a student
+-- can never reach the admin dashboard by using the staff form.
+--
+-- To revoke access later:
+-- delete from public.admin_allowlist where email = 'someone@adaniinternational.edu.in';
+-- update public.profiles set role = 'student' where email = 'someone@adaniinternational.edu.in';

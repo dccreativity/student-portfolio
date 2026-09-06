@@ -12,43 +12,36 @@ export default function AdminDashboard() {
   const router = useRouter();
 
   const [students, setStudents] = useState([]);
-  const [pendingAdmins, setPendingAdmins] = useState([]);
   const [search, setSearch] = useState("");
   const [gradeFilter, setGradeFilter] = useState("all");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let channel;
+    let cancelled = false;
 
     async function load() {
-      const [{ data: studentRows }, { data: pendingRows }] = await Promise.all([
-        supabase.from("profiles").select("*").eq("role", "student").order("full_name"),
-        supabase.from("profiles").select("*").eq("role", "admin").eq("status", "pending"),
-      ]);
-
-      setStudents(studentRows || []);
-      setPendingAdmins(pendingRows || []);
+      const { data } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("role", "student")
+        .order("full_name");
+      if (cancelled) return;
+      setStudents(data || []);
       setLoading(false);
-
-      channel = supabase
-        .channel("admin-profiles")
-        .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => load())
-        .subscribe();
     }
 
     load();
+    channel = supabase
+      .channel("admin-profiles")
+      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => load())
+      .subscribe();
+
     return () => {
+      cancelled = true;
       if (channel) supabase.removeChannel(channel);
     };
   }, []);
-
-  async function approveAdmin(id) {
-    await supabase.from("profiles").update({ status: "approved" }).eq("id", id);
-  }
-
-  async function rejectAdmin(id) {
-    await supabase.from("profiles").update({ role: "student", status: "approved" }).eq("id", id);
-  }
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -57,56 +50,67 @@ export default function AdminDashboard() {
   }
 
   const filtered = students.filter((s) => {
-    const matchesSearch = `${s.full_name} ${s.email}`.toLowerCase().includes(search.toLowerCase());
+    const matchesSearch = `${s.full_name} ${s.email}`
+      .toLowerCase()
+      .includes(search.toLowerCase());
     const matchesGrade = gradeFilter === "all" || s.grade === gradeFilter;
     return matchesSearch && matchesGrade;
   });
 
-  const grouped = GRADE_OPTIONS.reduce((acc, g) => {
-    acc[g] = filtered.filter((s) => s.grade === g);
-    return acc;
-  }, {});
+  // Grade 9–12 first, then anyone who signed up before grades were
+  // collected, so no student is ever missing from this list.
+  const groups = GRADE_OPTIONS.map((g) => ({
+    key: g,
+    label: `Grade ${g}`,
+    rows: filtered.filter((s) => s.grade === g),
+  }));
   const ungraded = filtered.filter((s) => !GRADE_OPTIONS.includes(s.grade));
+  if (ungraded.length > 0 && gradeFilter === "all") {
+    groups.push({ key: "none", label: "Grade not set", rows: ungraded });
+  }
+
+  const visibleGroups = groups.filter(
+    (g) => g.rows.length > 0 && (gradeFilter === "all" || gradeFilter === g.key)
+  );
 
   return (
     <main className="min-h-screen bg-cream p-6 md:p-10">
       <div className="flex items-center justify-between mb-8">
         <div>
           <Logo className="h-8 mb-1" />
-          <p className="text-xs uppercase tracking-wide text-neutral-500">Super Admin</p>
+          <p className="text-xs uppercase tracking-wide text-neutral-500">
+            School staff · view only
+          </p>
         </div>
         <button onClick={handleLogout} className="text-sm text-neutral-500 hover:text-ink">
           Log out
         </button>
       </div>
 
-      {pendingAdmins.length > 0 && (
-        <section className="bg-white/70 border border-line rounded-3xl p-6 mb-8">
-          <h2 className="font-medium mb-4">Pending admin approvals</h2>
-          <div className="space-y-3">
-            {pendingAdmins.map((p) => (
-              <div key={p.id} className="flex items-center justify-between text-sm">
-                <div>
-                  <p className="font-medium">{p.full_name}</p>
-                  <p className="text-neutral-500">{p.email}</p>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => approveAdmin(p.id)} className="rounded-lg bg-ink text-white px-3 py-1.5">
-                    Approve
-                  </button>
-                  <button onClick={() => rejectAdmin(p.id)} className="rounded-lg border border-line px-3 py-1.5">
-                    Deny
-                  </button>
-                </div>
-              </div>
-            ))}
+      <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3 mb-8">
+        <div className="bg-white/70 border border-line rounded-2xl p-4">
+          <p className="text-2xl font-semibold">{students.length}</p>
+          <p className="text-xs text-neutral-500 mt-1">Students enrolled</p>
+        </div>
+        {GRADE_OPTIONS.map((g) => (
+          <div key={g} className="bg-white/70 border border-line rounded-2xl p-4">
+            <p className="text-2xl font-semibold">
+              {students.filter((s) => s.grade === g).length}
+            </p>
+            <p className="text-xs text-neutral-500 mt-1">Grade {g}</p>
           </div>
-        </section>
-      )}
+        ))}
+      </div>
 
       <section className="bg-white/70 border border-line rounded-3xl p-6">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-          <h2 className="font-medium">Students ({filtered.length})</h2>
+          <div>
+            <h2 className="font-medium">Students ({filtered.length})</h2>
+            <p className="text-xs text-neutral-500 mt-0.5">
+              You can open and download any profile. Editing and deleting are
+              disabled for staff accounts.
+            </p>
+          </div>
           <div className="flex gap-2">
             <select
               value={gradeFilter}
@@ -131,58 +135,37 @@ export default function AdminDashboard() {
 
         {loading ? (
           <p className="text-neutral-500 text-sm">Loading…</p>
-        ) : filtered.length === 0 ? (
+        ) : visibleGroups.length === 0 ? (
           <p className="text-sm text-neutral-500 py-4">No students found.</p>
         ) : (
           <div className="space-y-8">
-            {GRADE_OPTIONS.filter((g) => gradeFilter === "all" || gradeFilter === g).map(
-              (g) =>
-                grouped[g].length > 0 && (
-                  <div key={g}>
-                    <h3 className="text-xs uppercase tracking-wide text-neutral-400 mb-2">
-                      Grade {g} · {grouped[g].length}
-                    </h3>
-                    <div className="divide-y divide-line">
-                      {grouped[g].map((s) => (
-                        <Link
-                          key={s.id}
-                          href={`/admin/dashboard/${s.id}`}
-                          className="flex items-center justify-between py-3 hover:text-clay"
-                        >
-                          <div>
-                            <p className="font-medium">{s.full_name}</p>
-                            <p className="text-sm text-neutral-500">{s.email}</p>
-                          </div>
-                          <span className="text-sm text-neutral-400">View →</span>
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                )
-            )}
-
-            {ungraded.length > 0 && (gradeFilter === "all") && (
-              <div>
+            {visibleGroups.map((group) => (
+              <div key={group.key}>
                 <h3 className="text-xs uppercase tracking-wide text-neutral-400 mb-2">
-                  Grade not set · {ungraded.length}
+                  {group.label} · {group.rows.length}
                 </h3>
                 <div className="divide-y divide-line">
-                  {ungraded.map((s) => (
+                  {group.rows.map((s) => (
                     <Link
                       key={s.id}
                       href={`/admin/dashboard/${s.id}`}
                       className="flex items-center justify-between py-3 hover:text-clay"
                     >
-                      <div>
-                        <p className="font-medium">{s.full_name}</p>
-                        <p className="text-sm text-neutral-500">{s.email}</p>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <span className="w-9 h-9 rounded-full bg-sand grid place-items-center font-display text-sm shrink-0">
+                          {s.full_name?.[0]?.toUpperCase() ?? "S"}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{s.full_name || "Unnamed student"}</p>
+                          <p className="text-sm text-neutral-500 truncate">{s.email}</p>
+                        </div>
                       </div>
-                      <span className="text-sm text-neutral-400">View →</span>
+                      <span className="text-sm text-neutral-400 shrink-0 ml-4">View →</span>
                     </Link>
                   ))}
                 </div>
               </div>
-            )}
+            ))}
           </div>
         )}
       </section>

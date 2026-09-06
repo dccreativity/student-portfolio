@@ -5,11 +5,13 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabaseClient";
 import { SECTION_SCHEMA } from "@/lib/sectionSchema";
+import { getSectionBanner } from "@/lib/constants";
 import { buildResumeModel } from "@/lib/resumeData";
 import { downloadResumePdf } from "@/lib/generateResumePdf";
 import SectionEditor from "@/components/SectionEditor";
 import MediaGallery from "@/components/MediaGallery";
 import ResumePreview from "@/components/ResumePreview";
+import PhotoBackdrop from "@/components/PhotoBackdrop";
 
 export default function AdminStudentView() {
   const { id } = useParams();
@@ -100,7 +102,19 @@ export default function AdminStudentView() {
           </section>
         ) : (
           <section className="bg-white/70 border border-line rounded-3xl p-6">
-            <h2 className="font-medium mb-4">{meta.label}</h2>
+            <PhotoBackdrop
+              src={getSectionBanner(meta.key).image}
+              gradient={getSectionBanner(meta.key).gradient}
+              overlay="bg-gradient-to-r from-ink/75 via-ink/45 to-ink/20"
+              className="rounded-2xl h-16 mb-5"
+            >
+              <div className="h-full flex items-center gap-3 px-4">
+                <span className="grid place-items-center w-9 h-9 rounded-xl bg-white/85 text-base">
+                  {getSectionBanner(meta.key).icon}
+                </span>
+                <h2 className="font-display text-lg text-white">{meta.label}</h2>
+              </div>
+            </PhotoBackdrop>
             {meta.type === "media" ? (
               <MediaGallery userId={id} sectionKey={meta.key} mediaType={meta.mediaType} readOnly />
             ) : (

@@ -1,15 +1,23 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabaseClient";
 import { UNSPLASH_IMAGES } from "@/lib/constants";
 import Logo from "@/components/Logo";
+import PhotoBackdrop from "@/components/PhotoBackdrop";
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const params = useSearchParams();
   const supabase = createClient();
+
+  // Middleware appends ?next= when it turns someone away from a private
+  // page, so they land where they were going instead of the dashboard.
+  // Only same-site paths are honoured — never an absolute URL.
+  const rawNext = params.get("next") || "";
+  const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -26,36 +34,43 @@ export default function LoginPage() {
       password,
     });
 
-    setLoading(false);
-
     if (signInError) {
+      setLoading(false);
       if (signInError.message.toLowerCase().includes("email not confirmed")) {
-        router.push(`/verify?email=${encodeURIComponent(email)}`);
+        router.push(
+          `/verify?email=${encodeURIComponent(email)}&next=${encodeURIComponent(next)}`
+        );
         return;
       }
-      setError(signInError.message);
+      setError(
+        /invalid login credentials/i.test(signInError.message)
+          ? "That email and password don't match an account. Check both, or create an account below."
+          : signInError.message
+      );
       return;
     }
 
-    router.push("/dashboard");
-    router.refresh();
+    // A hard navigation rather than router.push: the auth cookie is
+    // written by the browser client, and a client-side transition can
+    // reach the middleware before that cookie is readable — which is the
+    // classic Supabase + Next "logs in, bounces back to login" loop.
+    window.location.assign(next);
   }
 
   return (
     <main className="min-h-screen grid lg:grid-cols-2 bg-cream">
-      <div className="hidden lg:block relative">
-        <img
-          src={UNSPLASH_IMAGES.authHero}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-ink/40" />
-        <div className="relative h-full flex flex-col justify-end p-12 text-white">
+      <PhotoBackdrop
+        src={UNSPLASH_IMAGES.authHero}
+        gradient="from-clay via-[#B4643C] to-ink"
+        overlay="bg-ink/45"
+        className="hidden lg:block"
+      >
+        <div className="h-full flex flex-col justify-end p-12 text-white">
           <p className="font-display text-4xl leading-tight max-w-md">
             Every achievement, every story — one place to tell it.
           </p>
         </div>
-      </div>
+      </PhotoBackdrop>
 
       <div className="flex items-center justify-center px-6 py-16">
         <div className="w-full max-w-md">
@@ -103,5 +118,13 @@ export default function LoginPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

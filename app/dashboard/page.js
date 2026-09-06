@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabaseClient";
 import { SECTION_SCHEMA } from "@/lib/sectionSchema";
-import { UNSPLASH_IMAGES } from "@/lib/constants";
+import { GRADE_OPTIONS, UNSPLASH_IMAGES } from "@/lib/constants";
+import PhotoBackdrop from "@/components/PhotoBackdrop";
 
 function isSectionFilled(meta, content) {
   if (!content) return false;
@@ -27,6 +28,17 @@ export default function DashboardOverview() {
   const [sectionsData, setSectionsData] = useState({});
   const [mediaCounts, setMediaCounts] = useState({ picture_gallery: 0, video_gallery: 0 });
   const [loading, setLoading] = useState(true);
+  const [gradeSaving, setGradeSaving] = useState(false);
+
+  // Accounts created before grades were collected have none, and the
+  // admin list groups by grade — so students need a way to set it here.
+  async function saveGrade(grade) {
+    if (!profile || !grade || grade === profile.grade) return;
+    setGradeSaving(true);
+    const { error } = await supabase.from("profiles").update({ grade }).eq("id", profile.id);
+    setGradeSaving(false);
+    if (!error) setProfile((p) => ({ ...p, grade }));
+  }
 
   useEffect(() => {
     let dataChannel, mediaChannel;
@@ -112,20 +124,19 @@ export default function DashboardOverview() {
 
   return (
     <main className="p-6 md:p-10 max-w-6xl">
-      <div className="relative rounded-3xl overflow-hidden mb-8 h-40 md:h-48">
-        <img
-          src={UNSPLASH_IMAGES.dashboardHero}
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-ink/70 via-ink/30 to-transparent" />
-        <div className="relative h-full flex flex-col justify-end p-6 md:p-8">
+      <PhotoBackdrop
+        src={UNSPLASH_IMAGES.dashboardHero}
+        gradient="from-clay via-[#B4643C] to-ink"
+        overlay="bg-gradient-to-r from-ink/75 via-ink/35 to-transparent"
+        className="rounded-3xl mb-8 h-40 md:h-48"
+      >
+        <div className="h-full flex flex-col justify-end p-6 md:p-8">
           <p className="text-white/70 text-sm">Welcome back,</p>
           <h1 className="font-display text-3xl md:text-4xl text-white leading-tight">
             Your <span className="text-clayLight">journey.</span> Your story.
           </h1>
         </div>
-      </div>
+      </PhotoBackdrop>
 
       <div className="grid md:grid-cols-3 gap-6">
         <section className="md:col-span-2 bg-white/70 backdrop-blur border border-line rounded-3xl p-6">
@@ -136,11 +147,29 @@ export default function DashboardOverview() {
             <div>
               <h2 className="font-display text-2xl">{profile?.full_name}</h2>
               <p className="text-sm text-neutral-500">{profile?.email}</p>
-              {profile?.grade && (
-                <span className="inline-block mt-1 text-xs font-medium bg-clay/10 text-clay rounded-full px-3 py-1">
-                  Grade {profile.grade}
-                </span>
-              )}
+              <div className="flex items-center gap-2 mt-1.5">
+                <select
+                  value={profile?.grade ?? ""}
+                  onChange={(e) => saveGrade(e.target.value)}
+                  disabled={gradeSaving}
+                  aria-label="Your grade"
+                  className="text-xs font-medium bg-clay/10 text-clay rounded-full pl-3 pr-2 py-1 border border-clay/20 outline-none focus:ring-2 focus:ring-clay disabled:opacity-60"
+                >
+                  <option value="" disabled>
+                    Set your grade
+                  </option>
+                  {GRADE_OPTIONS.map((g) => (
+                    <option key={g} value={g}>
+                      Grade {g}
+                    </option>
+                  ))}
+                </select>
+                {!profile?.grade && (
+                  <span className="text-xs text-neutral-500">
+                    Pick your grade so your school can find your profile.
+                  </span>
+                )}
+              </div>
             </div>
           </div>
 

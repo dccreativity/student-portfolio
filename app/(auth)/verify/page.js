@@ -10,7 +10,10 @@ function VerifyForm() {
   const params = useSearchParams();
   const supabase = createClient();
   const email = params.get("email") || "";
-  const next = params.get("next") || "/dashboard";
+  const rawNext = params.get("next") || "/dashboard";
+  // Never follow an absolute URL out of the site.
+  const next =
+    rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
 
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
@@ -58,7 +61,7 @@ function VerifyForm() {
         return;
       }
     }
-    router.push(next);
+    window.location.assign(next);
   }
 
   async function handleResend() {

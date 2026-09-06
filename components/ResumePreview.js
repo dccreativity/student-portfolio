@@ -1,104 +1,172 @@
 "use client";
 
-import { sectionHasContent } from "@/lib/resumeData";
+import {
+  LETTERHEAD_SECTIONS,
+  buildLetterhead,
+  buildSectionBlocks,
+  headingRuns,
+} from "@/lib/resumeLayout";
+
+// Mirrors lib/generateResumePdf.js exactly, so what a student sees here
+// is what comes out of Download PDF: Times, US Letter proportions,
+// uppercase section headers over a double rule, bold/italic heading runs
+// with a right-aligned date, and hanging-indent bullets.
+
+function Runs({ runs }) {
+  return runs.map((run, i) => (
+    <span
+      key={i}
+      className={run.style === "bold" ? "font-bold" : run.style === "italic" ? "italic" : ""}
+    >
+      {run.text}
+    </span>
+  ));
+}
+
+function Bullet({ item }) {
+  if (item.type === "attachment") {
+    return (
+      <li className="flex gap-2 pl-[49px] list-none">
+        <a
+          href={item.url}
+          target="_blank"
+          rel="noreferrer"
+          className="italic text-[11.3px] text-neutral-500 hover:text-clay underline decoration-neutral-300"
+        >
+          Attached: {item.text}
+        </a>
+      </li>
+    );
+  }
+  return (
+    <li className="flex gap-0 list-none">
+      <span className="w-[24px] shrink-0" />
+      <span className="w-[25px] shrink-0 text-center">•</span>
+      <span className="flex-1 min-w-0">
+        {item.label && <span className="italic">{item.label}: </span>}
+        {item.url ? (
+          <a href={item.url} target="_blank" rel="noreferrer" className="text-blue-800 underline">
+            {item.text}
+          </a>
+        ) : (
+          item.text
+        )}
+      </span>
+      {item.right && (
+        <span className="shrink-0 pl-3 text-right tabular-nums">{item.right}</span>
+      )}
+    </li>
+  );
+}
+
+function SectionHeading({ children }) {
+  return (
+    <div>
+      <h2 className="font-bold uppercase text-[14.7px] tracking-[0.01em] leading-tight">
+        {children}
+      </h2>
+      {/* The reference's double rule under every section header. */}
+      <div className="border-t border-black mt-[3px]" />
+      <div className="border-t border-black mt-[1.5px] mb-[7px]" />
+    </div>
+  );
+}
 
 export default function ResumePreview({ profile, sections }) {
+  const headerSection = sections.find((s) => s.meta.key === "header");
+  const letterhead = buildLetterhead(profile, headerSection?.content);
+
   return (
-    <div className="bg-white border border-line rounded-3xl p-8 md:p-12 max-w-3xl mx-auto shadow-sm">
-      <h1 className="font-display text-3xl">{profile?.full_name || "Student Name"}</h1>
-      <p className="text-sm text-neutral-500 mt-1">
-        {[profile?.email, profile?.grade ? `Grade ${profile.grade}` : null]
-          .filter(Boolean)
-          .join("  ·  ")}
-      </p>
+    <article
+      className="bg-white border border-line rounded-xl shadow-sm mx-auto text-black font-serif leading-[1.18]"
+      style={{ maxWidth: "816px", padding: "48px", fontSize: "13.33px" }}
+    >
+      {/* ---- Letterhead ---- */}
+      <header className="text-center mb-1">
+        <h1 className="font-bold text-[24px] leading-tight mb-[2px]">{letterhead.name}</h1>
+        {letterhead.lines.length === 0 && (
+          <p className="text-neutral-400 italic mt-1">
+            Add your email, phone, address and LinkedIn under Header / Contact.
+          </p>
+        )}
+        {letterhead.lines.map((line, i) => (
+          <p key={i} className="mt-[2px]">
+            {line.label && <span className="font-bold">{line.label} </span>}
+            {line.email ? (
+              <>
+                <a href={`mailto:${line.email}`} className="text-blue-800 underline">
+                  {line.email}
+                </a>
+                {line.text.slice(line.email.length)}
+              </>
+            ) : (
+              line.text
+            )}
+          </p>
+        ))}
+      </header>
 
-      <div className="mt-8 space-y-8">
-        {sections.map(({ meta, content, media }) => {
-          const has = sectionHasContent({ meta, content, media });
-          return (
-            <div key={meta.key}>
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-clay border-b border-clay/30 pb-1 mb-3">
-                {meta.label}
-              </h2>
+      {/* ---- Sections ---- */}
+      <div className="mt-4">
+        {sections
+          .filter((s) => !LETTERHEAD_SECTIONS.includes(s.meta.key))
+          .map((section) => {
+            const blocks = buildSectionBlocks(section);
+            return (
+              <section key={section.meta.key} className="mt-[22px] first:mt-0">
+                <SectionHeading>{section.meta.label}</SectionHeading>
 
-              {!has && <p className="text-sm text-neutral-300">—</p>}
+                {blocks.length === 0 && (
+                  <p className="italic text-[11.3px] text-neutral-400">To be added.</p>
+                )}
 
-              {has && meta.type === "single" && (
-                <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-1 text-sm">
-                  {meta.fields.map(
-                    (f) =>
-                      content[f.key] && (
-                        <div key={f.key}>
-                          <dt className="text-neutral-400 text-xs">{f.label}</dt>
-                          <dd className="text-neutral-800">{content[f.key]}</dd>
-                        </div>
-                      )
-                  )}
-                </dl>
-              )}
-
-              {has && meta.type === "repeatable" && (
-                <ul className="space-y-2 text-sm">
-                  {(content.entries || []).map((entry, i) => (
-                    <li key={i} className="text-neutral-700">
-                      • {meta.fields.map((f) => entry[f.key]).filter(Boolean).join(" — ")}
-                      {entry.attachment_url && (
-                        <a
-                          href={entry.attachment_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="ml-2 text-clay underline text-xs"
-                        >
-                          📎 {entry.attachment_name || "attachment"}
-                        </a>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              {has && meta.type === "mixed" && (
-                <div className="space-y-3 text-sm">
-                  <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-1">
-                    {meta.fields.map(
-                      (f) =>
-                        content[f.key] && (
-                          <div key={f.key}>
-                            <dt className="text-neutral-400 text-xs">{f.label}</dt>
-                            <dd className="text-neutral-800">{content[f.key]}</dd>
-                          </div>
-                        )
-                    )}
-                  </dl>
-                  {meta.repeatableGroups.map((group) => {
-                    const entries = content[group.key] || [];
-                    if (entries.length === 0) return null;
+                {blocks.map((block, i) => {
+                  if (block.type === "entry") {
                     return (
-                      <div key={group.key}>
-                        <p className="text-xs font-medium text-neutral-500 mt-2">{group.label}</p>
-                        <ul className="space-y-1">
-                          {entries.map((entry, i) => (
-                            <li key={i} className="text-neutral-700">
-                              • {group.fields.map((f) => entry[f.key]).filter(Boolean).join(" — ")}
-                            </li>
-                          ))}
-                        </ul>
+                      <div key={i} className={i > 0 ? "mt-[6px]" : ""}>
+                        <div className="flex gap-3">
+                          <p className="flex-1 min-w-0">
+                            <Runs runs={headingRuns(block)} />
+                          </p>
+                          {block.right && (
+                            <p className="shrink-0 text-right">{block.right}</p>
+                          )}
+                        </div>
+                        {block.bullets.length > 0 && (
+                          <ul className="mt-[1px]">
+                            {block.bullets.map((b, j) => (
+                              <Bullet key={j} item={b} />
+                            ))}
+                          </ul>
+                        )}
                       </div>
                     );
-                  })}
-                </div>
-              )}
-
-              {has && meta.type === "media" && (
-                <p className="text-sm text-neutral-600">
-                  {media.length} item{media.length === 1 ? "" : "s"} — full media viewable on the
-                  live portfolio.
-                </p>
-              )}
-            </div>
-          );
-        })}
+                  }
+                  if (block.type === "paragraph") {
+                    return (
+                      <p key={i} className="whitespace-pre-wrap">
+                        {block.text}
+                      </p>
+                    );
+                  }
+                  if (block.type === "labelled") {
+                    return (
+                      <p key={i}>
+                        <span className="font-bold">{block.label} </span>
+                        {block.text}
+                      </p>
+                    );
+                  }
+                  return (
+                    <ul key={i}>
+                      <Bullet item={block} />
+                    </ul>
+                  );
+                })}
+              </section>
+            );
+          })}
       </div>
-    </div>
+    </article>
   );
 }

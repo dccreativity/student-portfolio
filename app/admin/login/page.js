@@ -43,18 +43,23 @@ function AdminLoginForm() {
     setLoading(false);
 
     if (profile?.role !== "admin") {
-      setError("This account does not have administrator access.");
+      // Students land here if they try the staff door. Sign them straight
+      // back out — an admin session is never created for them.
+      setError(
+        "This account does not have staff access. Students should log in through Student Login."
+      );
       await supabase.auth.signOut();
       return;
     }
     if (profile?.status !== "approved") {
-      setError("Your admin access is still pending super admin approval.");
+      setError("This staff account isn't active. Contact your school administrator.");
       await supabase.auth.signOut();
       return;
     }
 
-    router.push("/admin/dashboard");
-    router.refresh();
+    // Full navigation, for the same cookie-timing reason as the student
+    // login page.
+    window.location.assign("/admin/dashboard");
   }
 
   return (
@@ -99,7 +104,13 @@ function AdminLoginForm() {
         <p className="text-sm text-neutral-600 mt-6">
           New staff member?{" "}
           <Link href="/admin/signup" className="text-clay font-medium">
-            Request access
+            Create your staff account
+          </Link>
+        </p>
+        <p className="text-xs text-neutral-400 mt-4">
+          Students: this is not your login.{" "}
+          <Link href="/login" className="underline hover:text-ink">
+            Go to Student Login
           </Link>
         </p>
       </div>
