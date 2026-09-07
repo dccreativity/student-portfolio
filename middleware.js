@@ -11,6 +11,7 @@ const PUBLIC_PATHS = new Set([
   "/login",
   "/signup",
   "/verify",
+  "/forgot-password",
   "/admin/login",
   "/admin/signup",
 ]);

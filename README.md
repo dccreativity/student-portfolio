@@ -138,6 +138,32 @@ and tells you plainly when you have unsaved changes. Editing in one tab
 is no longer wiped by a real-time update arriving from another, and
 closing the tab with unsaved work warns you first.
 
+### Forgotten passwords
+
+There is a **Forgot password?** link on both login screens now. It sends
+a 6-digit code to the school address and takes a new password on the same
+screen — a code rather than a reset link, for the same reason the rest of
+the app verifies by code: a link has to return to an exact redirect URL,
+and a mismatch there fails silently. A code also works when the email
+opens on a phone and the student signed up on a laptop.
+
+Whether an address has an account is never revealed, so nobody can use
+the screen to discover who is registered.
+
+**This needs one setting**: Authentication → Email Templates → **Reset
+Password** must include `{{ .Token }}`, exactly as you did for Confirm
+signup. Otherwise the email arrives with a link and no code.
+
+**And it needs your own SMTP if students will use it.** Supabase's
+built-in mail service allows only a couple of messages an hour across the
+whole project. With a class of students forgetting passwords, that
+ceiling is reached almost immediately and resets simply stop arriving.
+Project Settings → Authentication → SMTP Settings.
+
+As a fallback you can always reset someone yourself: Supabase →
+Authentication → Users → find them → the **…** menu offers "Send password
+recovery" and "Reset password".
+
 ### Education, galleries and the resume
 
 **Education** is no longer a flat list of subject rows. It is one record
@@ -280,7 +306,15 @@ where the lines break.
    Your folio. verification code is: {{ .Token }}
    ```
    (Leave `{{ .ConfirmationURL }}` out — no magic links needed.)
-7. **Project Settings → API** → copy your **Project URL** and **anon
+7. **Authentication → Email Templates → Reset Password** → edit it the
+   same way, so the 6-digit `{{ .Token }}` is shown:
+   ```
+   Your folio. password reset code is: {{ .Token }}
+   ```
+   Without this the reset email arrives with a link and no code, and the
+   Forgot password screen has nothing to accept. Leave
+   `{{ .ConfirmationURL }}` out.
+8. **Project Settings → API** → copy your **Project URL** and **anon
    public key**. Keep this tab open.
 
 ## Step 2 — Get this code into GitHub (no git, no terminal)

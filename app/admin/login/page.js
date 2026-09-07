@@ -88,7 +88,15 @@ function AdminLoginForm() {
             />
           </div>
           <div>
-            <label className="text-sm font-medium">Password</label>
+            <div className="flex items-baseline justify-between">
+              <label className="text-sm font-medium">Password</label>
+              <Link
+                href="/forgot-password?next=%2Fadmin%2Flogin"
+                className="text-xs text-clay font-medium hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <input
               required
               type="password"
@@ -98,6 +106,11 @@ function AdminLoginForm() {
             />
           </div>
 
+          {params.get("reset") === "1" && !error && (
+            <p className="text-sm text-green-700">
+              Password updated. Log in with your new password.
+            </p>
+          )}
           {error && <p className="text-sm text-red-600">{error}</p>}
 
           <button

@@ -23,6 +23,8 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // Set by the reset page so the change is visibly confirmed.
+  const justReset = params.get("reset") === "1";
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -89,7 +91,15 @@ function LoginForm() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium">Password</label>
+              <div className="flex items-baseline justify-between">
+                <label className="text-sm font-medium">Password</label>
+                <Link
+                  href="/forgot-password?next=%2Flogin"
+                  className="text-xs text-clay font-medium hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <input
                 required
                 type="password"
@@ -99,6 +109,11 @@ function LoginForm() {
               />
             </div>
 
+            {justReset && !error && (
+              <p className="text-sm text-green-700">
+                Password updated. Log in with your new password.
+              </p>
+            )}
             {error && <p className="text-sm text-red-600">{error}</p>}
 
             <button
