@@ -9,7 +9,7 @@ export default function ChoosePage() {
 
       <main className="min-h-screen flex flex-col items-center justify-center px-6 py-16">
         <Link href="/" className="mb-3">
-          <Logo className="h-10" />
+          <Logo className="h-14" />
         </Link>
         <p className="text-sm text-neutral-500 mb-10">How are you signing in?</p>
 

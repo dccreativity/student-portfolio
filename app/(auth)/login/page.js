@@ -74,7 +74,7 @@ function LoginForm() {
 
       <div className="flex items-center justify-center px-6 py-16">
         <div className="w-full max-w-md">
-          <Logo className="h-10 mb-6" />
+          <Logo className="h-12 mb-6" />
           <h1 className="font-display text-3xl mb-6">Welcome back</h1>
 
           <form onSubmit={handleSubmit} className="space-y-4">

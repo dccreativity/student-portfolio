@@ -52,7 +52,14 @@ function AdminLoginForm() {
       return;
     }
     if (profile?.status !== "approved") {
-      setError("This staff account isn't active. Contact your school administrator.");
+      // Reachable by staff accounts created before access moved to the
+      // email allowlist, which were left waiting for a manual approval
+      // step that no longer exists. Name the remedy rather than leaving
+      // the person — often the administrator themselves — at a dead end.
+      setError(
+        "This staff account hasn't been activated yet. Ask your school administrator " +
+          "to add this address to the staff list (supabase/add-staff.sql)."
+      );
       await supabase.auth.signOut();
       return;
     }
@@ -65,7 +72,7 @@ function AdminLoginForm() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-cream px-6">
       <div className="w-full max-w-md bg-white/70 backdrop-blur-xl border border-line rounded-3xl p-8 shadow-sm">
-        <Logo className="h-9 mb-1" />
+        <Logo className="h-12 mb-2" />
         <p className="text-xs uppercase tracking-wide text-neutral-500 mb-6">Staff / Admin</p>
         <h1 className="font-display text-3xl mb-6">Staff login</h1>
 

@@ -288,24 +288,44 @@ never run `npm install` yourself.
 Admin access is granted by **email address, in advance** — there is no
 "request and approve" step, and no way for a student to talk their way in.
 
-1. Supabase → **SQL Editor** → New query → run this with your real staff
-   addresses:
-   ```sql
-   insert into public.admin_allowlist (email) values
-     ('you@adaniinternational.edu.in'),
-     ('counselor@adaniinternational.edu.in')
-   on conflict (email) do nothing;
-   ```
-2. Each of those people goes to `/admin/signup` on your live site, signs
-   up with **that exact address**, and verifies with the OTP code.
-3. They log in at `/admin/login`. They can now open every student profile,
-   grouped by grade, and download any student's resume — and nothing else.
+1. Open `supabase/add-staff.sql`. Put your staff addresses in the STEP 2
+   list near the top — that is the only part you edit.
+2. Paste the whole file into Supabase → **SQL Editor** → Run.
+3. It prints one line per person:
+   - **Signed up - can log in now** — they can use `/admin/login` today.
+   - **Not signed up yet** — they become an admin automatically the
+     moment they create their account at `/admin/signup` with that exact
+     address.
 
-To revoke someone later:
-```sql
-delete from public.admin_allowlist where email = 'someone@adaniinternational.edu.in';
-update public.profiles set role = 'student' where email = 'someone@adaniinternational.edu.in';
-```
+Re-run the same file whenever staff change; it is safe to run repeatedly.
+Removing someone is two lines, documented at the bottom of the file.
+
+**"This staff account hasn't been activated yet" at login?** Run
+`supabase/who-is-staff.sql` — it lists every account that is staff, is
+trying to be, or is on the staff list, and says what is blocking each
+one. The usual cause is an account created before access moved to the
+email allowlist: it was left with `status = 'pending'`, waiting for a
+manual approval step that no longer exists. Putting that address in
+`add-staff.sql` and running it clears it.
+
+Note that fixing this by hand with `update public.profiles set status =
+'approved'` does *not* work on its own — the role guard reverts it, and
+reports success while doing so. `add-staff.sql` repairs that guard first,
+which is why it is the file to use.
+
+Two things that file also handles, which are easy to get wrong by hand:
+
+- **Promoting someone who already has an account.** The rule that reads
+  the allowlist only runs when an account is *created*, so a staff member
+  who already signed up as a student would otherwise stay a student for
+  ever. STEP 3 promotes them.
+- **Repairing the role guard.** An earlier version of
+  `migration-readonly-admin.sql` shipped a guard that reverted *every*
+  role change, including ones made in the SQL Editor — the UPDATE said
+  "success" and silently did nothing. STEP 1 replaces it with a guard
+  that blocks the app's own database roles (so no student can promote
+  themselves) while letting you appoint staff from the SQL Editor. If you
+  ran that migration before this fix, running `add-staff.sql` repairs it.
 
 ---
 

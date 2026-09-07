@@ -81,7 +81,7 @@ function VerifyForm() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-cream px-6">
       <div className="w-full max-w-md bg-white/70 backdrop-blur-xl border border-line rounded-3xl p-8 shadow-sm">
-        <Logo className="h-9 mb-6" />
+        <Logo className="h-12 mb-6" />
         <h1 className="font-display text-3xl mb-2">Check your inbox</h1>
         <p className="text-sm text-neutral-600 mb-6">
           Enter the 6-digit code we sent to <span className="font-medium">{email}</span>.

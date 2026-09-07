@@ -80,7 +80,7 @@ export default function SignupPage() {
 
       <div className="flex items-center justify-center px-6 py-16">
         <div className="w-full max-w-md">
-          <Logo className="h-10 mb-6" />
+          <Logo className="h-12 mb-6" />
           <h1 className="font-display text-3xl mb-2">Create your account</h1>
           <p className="text-sm text-neutral-600 mb-6">
             Only school email addresses ending in{" "}

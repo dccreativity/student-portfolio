@@ -77,7 +77,7 @@ export default function AdminDashboard() {
     <main className="min-h-screen bg-cream p-6 md:p-10">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <Logo className="h-8 mb-1" />
+          <Logo className="h-10 mb-1" />
           <p className="text-xs uppercase tracking-wide text-neutral-500">
             School staff · view only
           </p>
