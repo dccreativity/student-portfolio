@@ -40,6 +40,54 @@ create trigger protect_profile_role_trigger
 
 
 -- ---------------------------------------------------------
+-- STEP 1b — make allowlist matching forgiving (automatic, leave as-is)
+--
+-- The rule that grants staff access compared the stored address to the
+-- signing-up one after lower-casing only the latter. An allowlist row
+-- saved with a capital letter or a stray space therefore never matched,
+-- and the person silently became an ordinary student. Both sides are now
+-- trimmed and lower-cased, and existing rows are normalised.
+-- ---------------------------------------------------------
+update public.admin_allowlist
+   set email = lower(trim(email))
+ where email <> lower(trim(email));
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  wants_admin boolean;
+  is_whitelisted boolean;
+begin
+  wants_admin := coalesce((new.raw_user_meta_data->>'request_admin')::boolean, false);
+  is_whitelisted := exists (
+    select 1 from public.admin_allowlist
+     where lower(trim(email)) = lower(trim(new.email))
+  );
+
+  insert into public.profiles (id, email, full_name, grade, role, status)
+  values (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data->>'full_name', ''),
+    new.raw_user_meta_data->>'grade',
+    case when wants_admin and is_whitelisted then 'admin' else 'student' end,
+    'approved'
+  );
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_user();
+
+
+-- ---------------------------------------------------------
 -- STEP 2 — YOUR STAFF EMAILS  ← the only part you edit
 --
 -- One line per person, comma-separated, semicolon after the last one.
@@ -69,7 +117,7 @@ on conflict (email) do nothing;
 update public.profiles p
    set role = 'admin', status = 'approved'
   from public.admin_allowlist a
- where lower(p.email) = a.email
+ where lower(trim(p.email)) = lower(trim(a.email))
    and (p.role is distinct from 'admin' or p.status is distinct from 'approved');
 
 
@@ -88,7 +136,7 @@ select a.email                                as "Staff email",
          else 'Signed up but NOT an admin - tell Claude'
        end                                    as "Status"
 from public.admin_allowlist a
-left join public.profiles p on lower(p.email) = a.email
+left join public.profiles p on lower(trim(p.email)) = lower(trim(a.email))
 order by a.email;
 
 

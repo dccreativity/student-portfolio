@@ -334,6 +334,19 @@ Admin access is granted by **email address, in advance** — there is no
 Re-run the same file whenever staff change; it is safe to run repeatedly.
 Removing someone is two lines, documented at the bottom of the file.
 
+**A staff email that won't register at all?** Run
+`supabase/diagnose-signup.sql` with that address at the top. It reports
+each stage of sign-up separately — domain, allowlist, whether an account
+was created, whether the code was entered, and whether the profile is an
+approved admin — so you can see which one failed.
+
+The most common cause is not this app: Supabase's built-in mail service
+allows only a couple of messages an hour across the whole project, so the
+second or third sign-up you test in a session cannot send its code and
+fails. Authentication → Logs records it. Connecting your school's own SMTP
+under Project Settings → Authentication → SMTP Settings removes the limit,
+and is worth doing before students start signing up anyway.
+
 **"This staff account hasn't been activated yet" at login?** Run
 `supabase/who-is-staff.sql` — it lists every account that is staff, is
 trying to be, or is on the staff list, and says what is blocking each
