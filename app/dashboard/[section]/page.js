@@ -15,9 +15,27 @@ export default function SectionPage() {
   const meta = getSectionMeta(section);
 
   const [userId, setUserId] = useState(null);
+  const [grade, setGrade] = useState(null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+    let cancelled = false;
+    supabase.auth.getUser().then(async ({ data }) => {
+      const id = data.user?.id ?? null;
+      if (cancelled) return;
+      setUserId(id);
+      if (!id) return;
+      // The Education section offers the years a student of this grade
+      // would be expected to hold, so it needs the grade.
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("grade")
+        .eq("id", id)
+        .single();
+      if (!cancelled) setGrade(profile?.grade ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   if (!meta) {
@@ -53,7 +71,7 @@ export default function SectionPage() {
       {meta.type === "media" ? (
         <MediaGallery userId={userId} sectionKey={meta.key} mediaType={meta.mediaType} />
       ) : (
-        <SectionEditor userId={userId} sectionKey={meta.key} />
+        <SectionEditor userId={userId} sectionKey={meta.key} studentGrade={grade} />
       )}
     </main>
   );

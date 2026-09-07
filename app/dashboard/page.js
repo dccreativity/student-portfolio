@@ -19,6 +19,10 @@ function isSectionFilled(meta, content) {
     const hasGroup = meta.repeatableGroups.some((g) => (content[g.key] || []).length > 0);
     return hasBasic || hasGroup;
   }
+  if (meta.type === "education") {
+    const hasBasic = meta.fields.some((f) => String(content[f.key] || "").trim().length > 0);
+    return hasBasic || (content.records || []).length > 0;
+  }
   return false;
 }
 
@@ -152,7 +156,7 @@ export default function DashboardOverview() {
                   value={profile?.grade ?? ""}
                   onChange={(e) => saveGrade(e.target.value)}
                   disabled={gradeSaving}
-                  aria-label="Your grade"
+                  aria-label="Your current grade"
                   className="text-xs font-medium bg-clay/10 text-clay rounded-full pl-3 pr-2 py-1 border border-clay/20 outline-none focus:ring-2 focus:ring-clay disabled:opacity-60"
                 >
                   <option value="" disabled>
@@ -164,11 +168,19 @@ export default function DashboardOverview() {
                     </option>
                   ))}
                 </select>
-                {!profile?.grade && (
-                  <span className="text-xs text-neutral-500">
-                    Pick your grade so your school can find your profile.
-                  </span>
-                )}
+                <span className="text-xs text-neutral-500">
+                  {profile?.grade ? (
+                    <>
+                      Your current grade. Earlier years go in{" "}
+                      <a href="/dashboard/education" className="text-clay underline">
+                        Education
+                      </a>
+                      .
+                    </>
+                  ) : (
+                    "Pick your current grade so your school can find your profile."
+                  )}
+                </span>
               </div>
             </div>
           </div>

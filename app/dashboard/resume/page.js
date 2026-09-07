@@ -53,8 +53,11 @@ export default function ResumePage() {
   async function handleDownload() {
     if (!model) return;
     setDownloading(true);
-    downloadResumePdf(model);
-    setDownloading(false);
+    try {
+      await downloadResumePdf(model);
+    } finally {
+      setDownloading(false);
+    }
   }
 
   if (!model) return <main className="p-10 text-neutral-500">Loading…</main>;

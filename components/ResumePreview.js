@@ -59,6 +59,30 @@ function Bullet({ item }) {
   );
 }
 
+// The picture gallery, laid out as a table of at most three columns so
+// the photographs are actually large enough to read, each with its
+// caption directly beneath it.
+function Gallery({ items }) {
+  return (
+    <div className="grid grid-cols-3 gap-3 mt-1">
+      {items.map((item, i) => (
+        <figure key={i} className="break-inside-avoid">
+          {/* Fitted rather than cropped, and left-aligned, so the
+              preview matches what the PDF draws. */}
+          <img
+            src={item.url}
+            alt={item.caption || ""}
+            className="h-24 w-full object-contain object-left"
+          />
+          <figcaption className="mt-1 text-[10.5px] leading-snug text-neutral-600">
+            {item.caption || "\u2014"}
+          </figcaption>
+        </figure>
+      ))}
+    </div>
+  );
+}
+
 function SectionHeading({ children }) {
   return (
     <div>
@@ -148,6 +172,9 @@ export default function ResumePreview({ profile, sections }) {
                         {block.text}
                       </p>
                     );
+                  }
+                  if (block.type === "gallery") {
+                    return <Gallery key={i} items={block.items} />;
                   }
                   if (block.type === "labelled") {
                     return (

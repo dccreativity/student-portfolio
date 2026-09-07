@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabaseClient";
 import { getSectionMeta } from "@/lib/sectionSchema";
 import { attachmentsOf, withAttachments } from "@/lib/uploads";
 import FileAttachments from "@/components/FileAttachments";
+import EducationEditor from "@/components/EducationEditor";
 
 function emptyEntry(fields) {
   const e = {};
@@ -111,7 +112,7 @@ function RepeatableTable({ fields, entries, onChange, readOnly, userId, pathPref
 // `readOnly` is used by the admin's per-student view: admins can see every
 // field but cannot save changes, per the school's requirement that admins
 // only observe what students have added, never edit or delete it.
-export default function SectionEditor({ userId, sectionKey, readOnly = false }) {
+export default function SectionEditor({ userId, sectionKey, studentGrade, readOnly = false }) {
   const supabase = createClient();
   const meta = getSectionMeta(sectionKey);
 
@@ -144,12 +145,53 @@ export default function SectionEditor({ userId, sectionKey, readOnly = false }) 
     function defaultContent() {
       if (meta.type === "single") return {};
       if (meta.type === "repeatable") return { entries: [] };
+      if (meta.type === "education") return { records: [] };
       if (meta.type === "mixed") {
         const base = {};
         meta.repeatableGroups.forEach((g) => (base[g.key] = []));
         return base;
       }
       return {};
+    }
+
+    // Education used to store a flat list of {year, subject, grade} rows
+    // plus a separate diploma-course list. Fold those into the per-year
+    // records the section uses now, so nothing a student already entered
+    // is lost the first time they open the page.
+    function migrate(content) {
+      if (!content || meta.type !== "education") return content;
+      if (Array.isArray(content.records)) return content;
+
+      const byYear = new Map();
+      (content.grades || []).forEach((g) => {
+        const year = String(g.year || "").trim() || "Earlier";
+        if (!byYear.has(year)) byYear.set(year, []);
+        byYear.get(year).push({ subject: g.subject || "", level: "", grade: g.grade || "" });
+      });
+
+      const records = [...byYear.entries()].map(([year, subjects]) => ({
+        year,
+        programme: "",
+        subjects,
+      }));
+
+      const courses = content.diploma_courses || [];
+      if (courses.length > 0) {
+        records.push({
+          year: "",
+          programme: "IBDP 1",
+          subjects: courses.map((c) => ({
+            subject: c.course || "",
+            level: c.level || "",
+            grade: "",
+          })),
+        });
+      }
+
+      const next = { ...content, records };
+      delete next.grades;
+      delete next.diploma_courses;
+      return next;
     }
 
     async function load() {
@@ -161,7 +203,7 @@ export default function SectionEditor({ userId, sectionKey, readOnly = false }) 
         .maybeSingle();
 
       if (cancelled) return;
-      setContent(row?.content ?? defaultContent());
+      setContent(migrate(row?.content) ?? defaultContent());
       setDirty(false);
       setLoading(false);
 
@@ -274,6 +316,39 @@ export default function SectionEditor({ userId, sectionKey, readOnly = false }) 
         />
       )}
 
+      {meta.type === "education" && (
+        <div className="space-y-8">
+          <div className="grid sm:grid-cols-2 gap-4">
+            {meta.fields.map((f) => (
+              <div key={f.key}>
+                <label className="text-xs text-neutral-500">{f.label}</label>
+                <FieldInput
+                  field={f}
+                  value={content[f.key] ?? ""}
+                  onChange={(v) => edit((prev) => ({ ...prev, [f.key]: v }))}
+                  readOnly={readOnly}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div>
+            <h3 className="font-medium mb-1">Academic record</h3>
+            <p className="text-sm text-neutral-500 mb-3">
+              One entry per year, with the programme you sat and the grades you
+              achieved in it.
+            </p>
+            <EducationEditor
+              records={content.records || []}
+              onChange={(records) => edit((prev) => ({ ...prev, records }))}
+              studentGrade={studentGrade}
+              readOnly={readOnly}
+              userId={userId}
+            />
+          </div>
+        </div>
+      )}
+
       {meta.type === "mixed" && (
         <div className="space-y-8">
           <div className="grid sm:grid-cols-2 gap-4">
@@ -309,7 +384,7 @@ export default function SectionEditor({ userId, sectionKey, readOnly = false }) 
       {/* Section-level files. Repeatable sections attach evidence per
           entry above; the single/mixed sections (Header, Objective,
           Education) had no upload option at all before this. */}
-      {(meta.type === "single" || meta.type === "mixed") && (
+      {(meta.type === "single" || meta.type === "mixed" || meta.type === "education") && (
         <div className="mt-6 border-t border-line pt-4">
           <p className="text-xs text-neutral-500">Supporting documents</p>
           <FileAttachments

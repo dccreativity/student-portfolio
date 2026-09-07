@@ -138,6 +138,40 @@ and tells you plainly when you have unsaved changes. Editing in one tab
 is no longer wiped by a real-time update arriving from another, and
 closing the tab with unsaved work warns you first.
 
+### Education, galleries and the resume
+
+**Education** is no longer a flat list of subject rows. It is one record
+per academic year: the year, the programme sat that year, and that year's
+results. The programme decides the table:
+
+| Programme | Columns | Grades |
+| --- | --- | --- |
+| IGCSE, AS Level, A Level | Subject, Grade | A*, A, B, C, D, E, F, G, U |
+| IBDP 1, IBDP 2 | Subject, SL/HL, Grade achieved | 1–7 |
+
+Subject is free text everywhere — no dropdown covers the combinations
+students actually take. Each year can carry its own attachments, so a
+result slip sits with the year it belongs to.
+
+The section also offers the years a student of that grade would be
+expected to hold, as one-click additions: a Grade 12 student is shown
+A Level and IBDP 2 for this year plus AS Level, IBDP 1 and IGCSE behind
+them, and adds whichever track they actually took. Nothing is added for
+them, because a student is on one track, not both.
+
+Anything already entered under the old shape is folded into the new one
+the first time the page opens, grouped by the year it was recorded
+against — nothing is lost.
+
+**Video Gallery** now holds links rather than uploads: a title and a URL
+per row, each becoming its own clickable bullet in the resume.
+
+**Picture Gallery** now appears in the resume itself — in the preview and
+in the downloaded PDF — as a grid of at most three columns, each photo
+with its caption beneath it, rather than the "6 items" summary line it
+used to print. The PDF embeds the actual photographs, which is why
+generating it now takes a moment longer.
+
 ### Resume
 
 The resume is now laid out from the sample consulting resume you sent, on

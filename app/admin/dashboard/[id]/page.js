@@ -39,8 +39,11 @@ export default function AdminStudentView() {
   async function handleDownload() {
     if (!resumeModel) return;
     setDownloading(true);
-    downloadResumePdf(resumeModel);
-    setDownloading(false);
+    try {
+      await downloadResumePdf(resumeModel);
+    } finally {
+      setDownloading(false);
+    }
   }
 
   return (
@@ -118,7 +121,12 @@ export default function AdminStudentView() {
             {meta.type === "media" ? (
               <MediaGallery userId={id} sectionKey={meta.key} mediaType={meta.mediaType} readOnly />
             ) : (
-              <SectionEditor userId={id} sectionKey={meta.key} readOnly />
+              <SectionEditor
+                userId={id}
+                sectionKey={meta.key}
+                studentGrade={student.grade}
+                readOnly
+              />
             )}
           </section>
         )}
