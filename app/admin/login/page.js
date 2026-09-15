@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabaseClient";
+import { isStaffRole } from "@/lib/constants";
 import Logo from "@/components/Logo";
 
 function AdminLoginForm() {
@@ -42,7 +43,7 @@ function AdminLoginForm() {
 
     setLoading(false);
 
-    if (profile?.role !== "admin") {
+    if (!isStaffRole(profile?.role)) {
       // Students land here if they try the staff door. Sign them straight
       // back out — an admin session is never created for them.
       setError(

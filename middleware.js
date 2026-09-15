@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
+import { isStaffRole } from "@/lib/constants";
 
 // Deny by default: every route needs a session except the handful below,
 // which are the only pages someone must be able to reach in order to get
@@ -77,17 +78,18 @@ export async function middleware(request) {
     profile = data;
   }
 
+  // Both staff roles reach the staff side. Testing for role === "admin"
+  // alone would lock the super admin out of the admin area entirely,
+  // since their role is "superadmin".
+  const isStaff = isStaffRole(profile?.role) && profile?.status === "approved";
+
   // Students can never reach the staff side, whatever URL they type.
-  if (adminArea && (!profile || profile.role !== "admin" || profile.status !== "approved")) {
+  if (adminArea && !isStaff) {
     return NextResponse.redirect(new URL("/admin/login?denied=1", request.url));
   }
 
   // A staff account has no portfolio of its own to edit.
-  if (
-    path.startsWith("/dashboard") &&
-    profile?.role === "admin" &&
-    profile?.status === "approved"
-  ) {
+  if (path.startsWith("/dashboard") && isStaff) {
     return NextResponse.redirect(new URL("/admin/dashboard", request.url));
   }
 

@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabaseClient";
+import { isStaffRole } from "@/lib/constants";
 import { friendlyAuthError } from "@/lib/authErrors";
 import Logo from "@/components/Logo";
 
@@ -55,7 +56,7 @@ function VerifyForm() {
 
       await supabase.auth.signOut();
 
-      if (profile?.role !== "admin") {
+      if (!isStaffRole(profile?.role)) {
         setError(
           "This email isn't on the approved staff list, so it can't get admin access. Contact your super admin if this seems wrong."
         );

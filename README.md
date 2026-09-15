@@ -7,6 +7,42 @@ photo/video galleries, and an admin panel. Built to be deployed with
 
 ## Latest update — read this first
 
+### Email is no longer required to run the site
+
+The school's mail server has refused every send so far, so the app no
+longer depends on it for anything essential.
+
+**Sign-up:** turn **Confirm email** off (Supabase → Authentication →
+Sign In / Providers → Email). Students then sign up and go straight to
+their dashboard — no code, no waiting. Only `@adaniinternational.edu.in`
+addresses can register either way; that is enforced in the database, not
+by the email.
+
+**Forgotten passwords:** open the student in the admin area. As super
+admin you now get an **Account** panel: type a new password (or press
+**Suggest one**), press **Set password**, and tell them what it is. It
+also confirms their email address at the same time, which is what
+unblocks anyone who signed up but was never able to confirm.
+
+**One setting is needed before that panel works.** It uses a Supabase key
+that must never be in the browser, so it lives on the server only:
+
+1. Supabase → **Project Settings → API** → copy the **`service_role`**
+   key (the secret one, *not* `anon`)
+2. Vercel → your project → **Settings → Environment Variables** → add
+   **`SUPABASE_SERVICE_ROLE_KEY`** with that value
+3. **Redeploy**
+
+Do not put `NEXT_PUBLIC_` in front of that name and do not paste the key
+anywhere else — that prefix is what would ship it to every visitor's
+browser. Without the variable the panel simply says so; nothing else
+breaks.
+
+The panel checks the caller is the super admin before doing anything, so
+a student or an ordinary admin who found the address gets refused.
+
+### If you still want email working
+
 ### Why nobody can sign up right now — and how to fix it in 5 minutes
 
 This is the one thing on the list that **only you can do**, and until it

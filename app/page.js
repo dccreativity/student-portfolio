@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabaseServer";
+import { isStaffRole } from "@/lib/constants";
 import BreathingBackground from "@/components/BreathingBackground";
 import Logo from "@/components/Logo";
 
@@ -17,7 +18,7 @@ export default async function Home() {
       .eq("id", user.id)
       .single();
 
-    if (profile?.role === "admin" && profile?.status === "approved") {
+    if (isStaffRole(profile?.role) && profile?.status === "approved") {
       redirect("/admin/dashboard");
     }
     redirect("/dashboard");
