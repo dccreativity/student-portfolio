@@ -94,26 +94,29 @@ export default function GradeCompletionTable({ students, gradeLabel }) {
   }
 
   return (
-    <div className="overflow-x-auto -mx-6 px-6">
+    // Only this box scrolls sideways. The page itself never does, so the
+    // rest of the screen stays put while the columns move.
+    <div className="overflow-x-auto overscroll-x-contain rounded-2xl border border-line">
       <table className="border-separate border-spacing-0 text-sm">
         <thead>
           <tr>
-            <th className="sticky left-0 z-10 bg-white text-left align-bottom pb-2 pr-4 border-b border-line">
+            <th className="sticky left-0 z-20 w-64 min-w-[16rem] bg-white text-left align-bottom p-3 border-b border-line">
               <span className="text-xs uppercase tracking-wide text-neutral-400">Student</span>
             </th>
-            <th className="align-bottom pb-2 px-2 border-b border-line">
+            <th className="sticky left-64 z-20 bg-white align-bottom p-3 border-b border-r border-line">
               <span className="text-xs uppercase tracking-wide text-neutral-400">Done</span>
             </th>
             {SECTION_SCHEMA.map((s) => (
-              <th key={s.key} className="align-bottom pb-2 px-1 border-b border-line">
-                {/* Seventeen columns of full section names would be
-                    unreadable across the page, so the headings stand up
-                    and keep their whole label. */}
-                <div
-                  className="h-40 text-xs text-neutral-500 font-normal whitespace-nowrap mx-auto"
-                  style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
-                >
-                  {s.label}
+              // Ordinary horizontal headings, wrapped inside a fixed
+              // column width. The full section name is on hover, since
+              // the heading is shortened to fit.
+              <th
+                key={s.key}
+                title={s.label}
+                className="align-bottom p-3 border-b border-line bg-white"
+              >
+                <div className="w-24 text-[11px] font-medium leading-tight text-neutral-600 text-center">
+                  {s.short || s.label}
                 </div>
               </th>
             ))}
@@ -129,8 +132,8 @@ export default function GradeCompletionTable({ students, gradeLabel }) {
 
             return (
               <tr key={student.id} className="group">
-                <td className="sticky left-0 z-10 bg-white group-hover:bg-cream/70 py-2 pr-4 border-b border-line">
-                  <Link href={`/admin/dashboard/${student.id}`} className="block min-w-[13rem] hover:text-clay">
+                <td className="sticky left-0 z-10 w-64 min-w-[16rem] bg-white group-hover:bg-cream/70 p-3 border-b border-line">
+                  <Link href={`/admin/dashboard/${student.id}`} className="block hover:text-clay">
                     <span className="font-medium block truncate">
                       {student.full_name || "Unnamed student"}
                     </span>
@@ -140,13 +143,13 @@ export default function GradeCompletionTable({ students, gradeLabel }) {
                     </span>
                   </Link>
                 </td>
-                <td className="py-2 px-2 border-b border-line text-center whitespace-nowrap">
+                <td className="sticky left-64 z-10 bg-white group-hover:bg-cream/70 p-3 border-b border-r border-line text-center whitespace-nowrap">
                   <span className="text-xs font-medium text-neutral-600">
                     {loading ? "—" : `${done}/${SECTION_SCHEMA.length}`}
                   </span>
                 </td>
                 {SECTION_SCHEMA.map((s) => (
-                  <td key={s.key} className="py-2 px-1 border-b border-line text-center">
+                  <td key={s.key} className="p-3 border-b border-line text-center">
                     {loading ? (
                       <span className="inline-block w-5 h-5 rounded-full bg-neutral-100" />
                     ) : (
