@@ -22,7 +22,7 @@ export default function Sidebar() {
   return (
     <aside className="hidden md:flex md:flex-col w-64 shrink-0 bg-ink text-white/90 min-h-screen sticky top-0 px-5 py-6">
       <div className="mb-8 px-2">
-        <Logo dark className="h-7" />
+        <Logo dark className="h-10" />
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto pr-1">

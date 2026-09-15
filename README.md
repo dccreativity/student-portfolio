@@ -5,30 +5,208 @@ with school-email-only sign-up, OTP verification, live real-time updates,
 photo/video galleries, and an admin panel. Built to be deployed with
 **zero local installs** — everything below happens in a browser.
 
-## Latest update — read this first if your site is already live
+## Latest update — read this first
 
-Two things were genuinely broken and are now fixed, plus a set of
-changes you asked for. **One new SQL file has to be run**, everything
-else is code.
+### Turning email confirmation back on
 
-### Run this SQL (Supabase → SQL Editor → New query → paste → Run)
+Supabase's built-in email service works — it is what delivered your and
+Shaurya's confirmations — but it **only sends its default templates**,
+and those carry a **link**, not a 6-digit code. The template editor is
+locked unless custom SMTP is configured, so with the built-in service
+there is no way to put `{{ .Token }}` into the reset email.
 
-**None of this is applied to your Supabase project yet.** These are files
-in the repo; Vercel deploys the app code automatically, but nothing can
-reach your database except you, pasting SQL into the SQL Editor.
+The app now accepts **both**. Whichever Supabase sends, it works:
 
-Not sure what you have already run? Paste `supabase/check-setup.sql` and
-hit Run. It changes nothing and returns a checklist of what is in place
-and which file to run for anything that is not.
+- **a link** — the student clicks it and lands back on the site with the
+  password box ready
+- **a code** — the student types the 6 digits, as before
 
-Two files, in this order, after the migrations you have already run
-(`migration-grade.sql`, `migration-admin-allowlist.sql`). Both are safe
-to re-run:
+So there is nothing to configure in the templates. Do this instead:
 
-1. `supabase/migration-readonly-admin.sql`
-2. `supabase/migration-private-files.sql`
+1. Project Settings → **Authentication → SMTP Settings** → turn **Enable
+   Custom SMTP** off
+2. Authentication → **Sign In / Providers → Email** → turn **Confirm
+   email** on
+3. Authentication → **URL Configuration** → set **Site URL** to your
+   Vercel address, and add these two under **Redirect URLs**:
+   - `https://YOUR-SITE.vercel.app/verify`
+   - `https://YOUR-SITE.vercel.app/forgot-password`
 
-`supabase/media.sql` is now also safe to re-run, if you ever need to.
+Step 3 is not optional. The links in those emails come back to those two
+addresses, and Supabase refuses to redirect anywhere it has not been told
+about — silently, which is exactly the failure that is maddening to
+diagnose.
+
+**One limitation to know:** a reset link only works in the browser it was
+requested from. A student who asks on a laptop and opens the email on
+their phone will be told so plainly and asked to try from the laptop —
+or you set their password from the Account panel below. Codes do not have
+this limitation, which is the one reason to prefer custom SMTP once you
+have a mail service that works.
+
+**The built-in sender is rate-limited** to a handful of emails per hour
+for the whole project (Authentication → Rate Limits shows the number). It
+is fine for a few sign-ups a day and will fail the day a whole class
+registers at once.
+
+### Email is not required to run the site
+
+Whatever happens to the mail server, the site keeps working.
+
+**Sign-up:** turning **Confirm email** off lets students sign up and go
+straight to their dashboard — no code, no waiting. Only
+`@adaniinternational.edu.in` addresses can register either way; that is
+enforced in the database, not by the email.
+
+**Forgotten passwords:** open the student in the admin area. As super
+admin you now get an **Account** panel: type a new password (or press
+**Suggest one**), press **Set password**, and tell them what it is. It
+also confirms their email address at the same time, which is what
+unblocks anyone who signed up but was never able to confirm.
+
+**One setting is needed before that panel works.** It uses a Supabase key
+that must never be in the browser, so it lives on the server only:
+
+1. Supabase → **Project Settings → API** → copy the **`service_role`**
+   key (the secret one, *not* `anon`)
+2. Vercel → your project → **Settings → Environment Variables** → add
+   **`SUPABASE_SERVICE_ROLE_KEY`** with that value
+3. **Redeploy**
+
+Do not put `NEXT_PUBLIC_` in front of that name and do not paste the key
+anywhere else — that prefix is what would ship it to every visitor's
+browser. Without the variable the panel simply says so; nothing else
+breaks.
+
+The panel checks the caller is the super admin before doing anything, so
+a student or an ordinary admin who found the address gets refused.
+
+### What happened with Gmail, for the record
+
+Custom SMTP was pointed at Gmail and every send was refused with
+`535 BadCredentials`, because the app password belonged to a different
+Google account from the one in the Username field. Many school Google
+Workspace domains also disable app passwords entirely, which would make
+that route a dead end whatever else was tried.
+
+The built-in service was working before that change — Shaurya's address
+confirmed 23 seconds after he signed up on 7 September. Turning custom
+SMTP off restores it.
+
+### Run this SQL — actually, you don't have to this time
+
+`supabase/migration-superadmin-uid-realtime.sql` is **already applied to
+your live project**. It is in the repo so the database can be rebuilt
+from that folder alone. Running it again changes nothing.
+
+It did four things:
+
+- Made you (`deepak.chaudhary@adaniinternational.edu.in`) the **super
+  admin**.
+- Added the **UID** column.
+- Made **deleting a photo** show up live.
+- Fixed the allowlist matching bug that stopped your second admin address
+  from registering as staff.
+
+Still worth running, if you have not already: `supabase/add-staff.sql`,
+with your staff addresses in STEP 2.
+
+### Super admin
+
+Ordinary admins are unchanged: they see everything and can change
+nothing. Your account can now also **correct and delete** any student's
+data — the editors open as editable for you and read-only for everyone
+else.
+
+This is enforced in the database, not just hidden in the page: an
+ordinary admin who tampered with the site in their browser would still
+have every write refused. You cannot promote anyone from inside the app,
+on purpose — that stays a deliberate SQL step, so nobody can talk their
+way into it.
+
+### UID
+
+Students now enter a **4-digit UID** when they sign up — not 3, not 5,
+digits only. Students who signed up before this can add theirs from the
+box next to their grade on the dashboard. UIDs show up in the admin list
+and on each student's page.
+
+UIDs are **not** forced to be unique, deliberately: if two students
+genuinely shared one, a unique rule would block the second student's
+sign-up with a database error. Say the word and it is a one-line change.
+
+### Completion at a glance
+
+- **Students** see a green tick against every section they have saved,
+  and a yellow dash against the ones still to do.
+- **Admins** pick a single grade and get a table of that grade's
+  students — one row each, sorted by first name, one column per section,
+  ticked where the student has saved it. It updates live as students
+  work.
+
+One rule decides the tick in both places (`lib/completion.js`), so they
+can never disagree.
+
+### Writing in bullet points
+
+Every field where a student writes statements — responsibilities,
+outcomes, findings, duties, impact, takeaways — is now a **list of
+points** instead of a single line. Enter starts the next point. Each
+point becomes its own bullet on the resume.
+
+**Objective** is different on purpose: a big box with a live
+**500-character count** that moves as they type and stops at 500.
+
+### Education, rebuilt around what students actually took
+
+A student's grade no longer decides what they may record — it is only
+how admins group them now.
+
+Everyone can add **any** year, as many times as they need:
+
+- **Grade 9 and 10** — IGCSE (pre-selected) or **Other**
+- **Grade 11 and 12** — **Cambridge AS & A Level** or **IB DP**, or
+  **Other**
+
+**Other** asks which programme it was (ICSE, CBSE, MYP, a state board)
+and leaves the grade as free text with no list and no range, so marks go
+in exactly as the board awarded them. IB DP keeps SL/HL and 1–7;
+Cambridge keeps A*–U. Subject is always typed, never a dropdown. The
+columns now line up with their headings whichever programme is chosen.
+
+### Skills
+
+The Skill field is now a dropdown of the twelve you listed. The second
+field became **evidence** — how the student demonstrated it — and takes
+bullet points. On the resume, skills without evidence are collected into
+one `Skills:` line; a skill with evidence gets its own block.
+
+### The resume PDF, fixed
+
+Both problems in the PDF you sent are fixed, and verified against that
+exact data:
+
+- **Text ran off the page.** A long address was being centred by
+  measuring the whole line and starting it half its width left of centre
+  — which for an address wider than the page is a negative position, so
+  it bled off both edges. Addresses now wrap first and each line is
+  centred. Over-long single words break instead of overflowing too.
+- **A section heading was stranded at the foot of a page**
+  (`SOCIAL SERVICE ACTIVITIES` was the last thing on page 1, its content
+  on page 2). A heading now moves to the next page together with its
+  first entry.
+
+### The tab
+
+Every page shows the school crest as the browser tab icon and the title
+**ADIS Student Portfolio**.
+
+### The new colours
+
+The whole site now uses your palette — `#F4EFFA`, `#C8B1E4`, `#9B72CF`,
+`#532B88`, `#2F184B` and white. Nothing on the site is black any more;
+the darkest purple stands in for it. Changing any of these in
+`lib/tailwindCdn.js` restyles every screen at once.
 
 ### Nothing is reachable by URL without an account
 
@@ -138,6 +316,66 @@ and tells you plainly when you have unsaved changes. Editing in one tab
 is no longer wiped by a real-time update arriving from another, and
 closing the tab with unsaved work warns you first.
 
+### Forgotten passwords
+
+There is a **Forgot password?** link on both login screens now. It sends
+a 6-digit code to the school address and takes a new password on the same
+screen — a code rather than a reset link, for the same reason the rest of
+the app verifies by code: a link has to return to an exact redirect URL,
+and a mismatch there fails silently. A code also works when the email
+opens on a phone and the student signed up on a laptop.
+
+Whether an address has an account is never revealed, so nobody can use
+the screen to discover who is registered.
+
+**This needs one setting**: Authentication → Email Templates → **Reset
+Password** must include `{{ .Token }}`, exactly as you did for Confirm
+signup. Otherwise the email arrives with a link and no code.
+
+**And it needs your own SMTP if students will use it.** Supabase's
+built-in mail service allows only a couple of messages an hour across the
+whole project. With a class of students forgetting passwords, that
+ceiling is reached almost immediately and resets simply stop arriving.
+Project Settings → Authentication → SMTP Settings.
+
+As a fallback you can always reset someone yourself: Supabase →
+Authentication → Users → find them → the **…** menu offers "Send password
+recovery" and "Reset password".
+
+### Education, galleries and the resume
+
+**Education** is no longer a flat list of subject rows. It is one record
+per academic year: the year, the programme sat that year, and that year's
+results. The programme decides the table:
+
+| Programme | Columns | Grades |
+| --- | --- | --- |
+| IGCSE, AS Level, A Level | Subject, Grade | A*, A, B, C, D, E, F, G, U |
+| IBDP 1, IBDP 2 | Subject, SL/HL, Grade achieved | 1–7 |
+
+Subject is free text everywhere — no dropdown covers the combinations
+students actually take. Each year can carry its own attachments, so a
+result slip sits with the year it belongs to.
+
+The section also offers the years a student of that grade would be
+expected to hold, as one-click additions: a Grade 12 student is shown
+A Level and IBDP 2 for this year plus AS Level, IBDP 1 and IGCSE behind
+them, and adds whichever track they actually took. Nothing is added for
+them, because a student is on one track, not both.
+
+Anything already entered under the old shape is folded into the new one
+the first time the page opens, grouped by the year it was recorded
+against — nothing is lost.
+
+**Video Gallery** now holds links rather than uploads: a title and a URL
+per row, each becoming its own clickable bullet in the resume.
+
+**Picture Gallery** now appears in the resume itself — in the preview and
+in the downloaded PDF — as a grid of at most three columns, each photo
+with its caption beneath it, rather than the "6 items" summary line it
+used to print. The PDF embeds the actual photographs, which is why
+generating it now takes a moment longer.
+
 ### Resume
 
 The resume is now laid out from the sample consulting resume you sent, on
@@ -246,7 +484,15 @@ where the lines break.
    Your folio. verification code is: {{ .Token }}
    ```
    (Leave `{{ .ConfirmationURL }}` out — no magic links needed.)
-7. **Project Settings → API** → copy your **Project URL** and **anon
+7. **Authentication → Email Templates → Reset Password** → edit it the
+   same way, so the 6-digit `{{ .Token }}` is shown:
+   ```
+   Your folio. password reset code is: {{ .Token }}
+   ```
+   Without this the reset email arrives with a link and no code, and the
+   Forgot password screen has nothing to accept. Leave
+   `{{ .ConfirmationURL }}` out.
+8. **Project Settings → API** → copy your **Project URL** and **anon
    public key**. Keep this tab open.
 
 ## Step 2 — Get this code into GitHub (no git, no terminal)
@@ -288,24 +534,57 @@ never run `npm install` yourself.
 Admin access is granted by **email address, in advance** — there is no
 "request and approve" step, and no way for a student to talk their way in.
 
-1. Supabase → **SQL Editor** → New query → run this with your real staff
-   addresses:
-   ```sql
-   insert into public.admin_allowlist (email) values
-     ('you@adaniinternational.edu.in'),
-     ('counselor@adaniinternational.edu.in')
-   on conflict (email) do nothing;
-   ```
-2. Each of those people goes to `/admin/signup` on your live site, signs
-   up with **that exact address**, and verifies with the OTP code.
-3. They log in at `/admin/login`. They can now open every student profile,
-   grouped by grade, and download any student's resume — and nothing else.
+1. Open `supabase/add-staff.sql`. Put your staff addresses in the STEP 2
+   list near the top — that is the only part you edit.
+2. Paste the whole file into Supabase → **SQL Editor** → Run.
+3. It prints one line per person:
+   - **Signed up - can log in now** — they can use `/admin/login` today.
+   - **Not signed up yet** — they become an admin automatically the
+     moment they create their account at `/admin/signup` with that exact
+     address.
 
-To revoke someone later:
-```sql
-delete from public.admin_allowlist where email = 'someone@adaniinternational.edu.in';
-update public.profiles set role = 'student' where email = 'someone@adaniinternational.edu.in';
-```
+Re-run the same file whenever staff change; it is safe to run repeatedly.
+Removing someone is two lines, documented at the bottom of the file.
+
+**A staff email that won't register at all?** Run
+`supabase/diagnose-signup.sql` with that address at the top. It reports
+each stage of sign-up separately — domain, allowlist, whether an account
+was created, whether the code was entered, and whether the profile is an
+approved admin — so you can see which one failed.
+
+The most common cause is not this app: Supabase's built-in mail service
+allows only a couple of messages an hour across the whole project, so the
+second or third sign-up you test in a session cannot send its code and
+fails. Authentication → Logs records it. Connecting your school's own SMTP
+under Project Settings → Authentication → SMTP Settings removes the limit,
+and is worth doing before students start signing up anyway.
+
+**"This staff account hasn't been activated yet" at login?** Run
+`supabase/who-is-staff.sql` — it lists every account that is staff, is
+trying to be, or is on the staff list, and says what is blocking each
+one. The usual cause is an account created before access moved to the
+email allowlist: it was left with `status = 'pending'`, waiting for a
+manual approval step that no longer exists. Putting that address in
+`add-staff.sql` and running it clears it.
+
+Note that fixing this by hand with `update public.profiles set status =
+'approved'` does *not* work on its own — the role guard reverts it, and
+reports success while doing so. `add-staff.sql` repairs that guard first,
+which is why it is the file to use.
+
+Two things that file also handles, which are easy to get wrong by hand:
+
+- **Promoting someone who already has an account.** The rule that reads
+  the allowlist only runs when an account is *created*, so a staff member
+  who already signed up as a student would otherwise stay a student for
+  ever. STEP 3 promotes them.
+- **Repairing the role guard.** An earlier version of
+  `migration-readonly-admin.sql` shipped a guard that reverted *every*
+  role change, including ones made in the SQL Editor — the UPDATE said
+  "success" and silently did nothing. STEP 1 replaces it with a guard
+  that blocks the app's own database roles (so no student can promote
+  themselves) while letting you appoint staff from the SQL Editor. If you
+  ran that migration before this fix, running `add-staff.sql` repairs it.
 
 ---
 

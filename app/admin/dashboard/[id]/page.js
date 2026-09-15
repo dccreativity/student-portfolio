@@ -7,6 +7,8 @@ import { createClient } from "@/lib/supabaseClient";
 import { SECTION_SCHEMA } from "@/lib/sectionSchema";
 import { getSectionBanner } from "@/lib/constants";
 import { buildResumeModel } from "@/lib/resumeData";
+import { isSuperAdmin, useViewer } from "@/lib/useViewer";
+import AccountTools from "@/components/AccountTools";
 import { downloadResumePdf } from "@/lib/generateResumePdf";
 import SectionEditor from "@/components/SectionEditor";
 import MediaGallery from "@/components/MediaGallery";
@@ -16,6 +18,9 @@ import PhotoBackdrop from "@/components/PhotoBackdrop";
 export default function AdminStudentView() {
   const { id } = useParams();
   const supabase = createClient();
+
+  const viewer = useViewer();
+  const canEdit = isSuperAdmin(viewer);
 
   const [student, setStudent] = useState(null);
   const [activeSection, setActiveSection] = useState("resume");
@@ -39,8 +44,11 @@ export default function AdminStudentView() {
   async function handleDownload() {
     if (!resumeModel) return;
     setDownloading(true);
-    downloadResumePdf(resumeModel);
-    setDownloading(false);
+    try {
+      await downloadResumePdf(resumeModel);
+    } finally {
+      setDownloading(false);
+    }
   }
 
   return (
@@ -56,8 +64,19 @@ export default function AdminStudentView() {
             Grade {student.grade}
           </span>
         )}
-        <span className="text-xs text-neutral-400">Admins can view but not edit or delete student data.</span>
+        {student.uid && (
+          <span className="inline-block text-xs font-medium bg-sand text-ink rounded-full px-3 py-1">
+            UID {student.uid}
+          </span>
+        )}
+        <span className="text-xs text-neutral-400">
+          {canEdit
+            ? "You are a super admin: changes you save here are written to this student's portfolio."
+            : "Admins can view but not edit or delete student data."}
+        </span>
       </div>
+
+      {canEdit && <AccountTools student={student} />}
 
       <div className="grid md:grid-cols-[240px_1fr] gap-6">
         <nav className="space-y-1 max-h-[80vh] overflow-y-auto pr-1">
@@ -89,7 +108,7 @@ export default function AdminStudentView() {
               <button
                 onClick={handleDownload}
                 disabled={!resumeModel || downloading}
-                className="rounded-xl bg-ink text-white px-5 py-2.5 text-sm font-medium hover:bg-black transition disabled:opacity-60"
+                className="rounded-xl bg-ink text-white px-5 py-2.5 text-sm font-medium hover:bg-inkDeep transition disabled:opacity-60"
               >
                 {downloading ? "Preparing…" : "Download PDF"}
               </button>
@@ -116,9 +135,15 @@ export default function AdminStudentView() {
               </div>
             </PhotoBackdrop>
             {meta.type === "media" ? (
-              <MediaGallery userId={id} sectionKey={meta.key} mediaType={meta.mediaType} readOnly />
+              <MediaGallery
+                userId={id}
+                sectionKey={meta.key}
+                mediaType={meta.mediaType}
+                readOnly={!canEdit}
+                allowUpload={false}
+              />
             ) : (
-              <SectionEditor userId={id} sectionKey={meta.key} readOnly />
+              <SectionEditor userId={id} sectionKey={meta.key} readOnly={!canEdit} />
             )}
           </section>
         )}

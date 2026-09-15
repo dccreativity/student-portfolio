@@ -4,7 +4,15 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabaseClient";
-import { ALLOWED_EMAIL_DOMAIN, isAllowedSchoolEmail, GRADE_OPTIONS, UNSPLASH_IMAGES } from "@/lib/constants";
+import {
+  ALLOWED_EMAIL_DOMAIN,
+  isAllowedSchoolEmail,
+  isValidUid,
+  GRADE_OPTIONS,
+  UID_LENGTH,
+  UNSPLASH_IMAGES,
+} from "@/lib/constants";
+import { friendlyAuthError } from "@/lib/authErrors";
 import Logo from "@/components/Logo";
 import PhotoBackdrop from "@/components/PhotoBackdrop";
 
@@ -16,6 +24,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [grade, setGrade] = useState("");
+  const [uid, setUid] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -35,19 +44,32 @@ export default function SignupPage() {
       setError("Please select your grade.");
       return;
     }
+    if (!isValidUid(uid)) {
+      setError(`Your UID must be exactly ${UID_LENGTH} digits.`);
+      return;
+    }
 
     setLoading(true);
     const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName, grade },
+        // Where the link in the confirmation email comes back to.
+        // Supabase's built-in email service can only send its default
+        // template, which carries a link rather than a code, so the link
+        // has to land somewhere that can finish the job. This exact
+        // address must be listed under Authentication -> URL Configuration
+        // -> Redirect URLs in Supabase, or the link is refused.
+        emailRedirectTo: `${window.location.origin}/verify?email=${encodeURIComponent(
+          email
+        )}&next=%2Fdashboard`,
+        data: { full_name: fullName, grade, uid: uid.trim() },
       },
     });
     setLoading(false);
 
     if (signUpError) {
-      setError(signUpError.message);
+      setError(friendlyAuthError(signUpError, "verification code"));
       return;
     }
 
@@ -60,6 +82,16 @@ export default function SignupPage() {
       return;
     }
 
+    // With email confirmation switched off in Supabase, sign-up
+    // returns a session immediately and no code is sent — so there is
+    // nothing to verify and the account is ready to use. Sending them
+    // to /verify would strand them waiting for a code that is never
+    // coming.
+    if (data?.session) {
+      window.location.assign("/dashboard");
+      return;
+    }
+
     router.push(`/verify?email=${encodeURIComponent(email)}&next=%2Fdashboard`);
   }
 
@@ -67,7 +99,7 @@ export default function SignupPage() {
     <main className="min-h-screen grid lg:grid-cols-2 bg-cream">
       <PhotoBackdrop
         src={UNSPLASH_IMAGES.authHero}
-        gradient="from-clay via-[#B4643C] to-ink"
+        gradient="from-clay via-[#532B88] to-ink"
         overlay="bg-ink/45"
         className="hidden lg:block"
       >
@@ -80,7 +112,7 @@ export default function SignupPage() {
 
       <div className="flex items-center justify-center px-6 py-16">
         <div className="w-full max-w-md">
-          <Logo className="h-10 mb-6" />
+          <Logo className="h-12 mb-6" />
           <h1 className="font-display text-3xl mb-2">Create your account</h1>
           <p className="text-sm text-neutral-600 mb-6">
             Only school email addresses ending in{" "}
@@ -128,6 +160,26 @@ export default function SignupPage() {
               </select>
             </div>
             <div>
+              <label className="text-sm font-medium">UID</label>
+              <input
+                required
+                // A numeric keypad on phones, and nothing but digits gets
+                // in: the school's UID is exactly four digits, so there is
+                // no state in which a fifth is wanted.
+                inputMode="numeric"
+                pattern={`\\d{${UID_LENGTH}}`}
+                maxLength={UID_LENGTH}
+                value={uid}
+                onChange={(e) => setUid(e.target.value.replace(/\D/g, "").slice(0, UID_LENGTH))}
+                className="mt-1 w-full rounded-xl border border-line bg-white/80 px-4 py-2.5 outline-none focus:ring-2 focus:ring-clay tracking-[0.3em] font-medium"
+                placeholder="0000"
+              />
+              <p className="mt-1 text-xs text-neutral-500">
+                Your {UID_LENGTH}-digit school UID.
+              </p>
+            </div>
+
+            <div>
               <label className="text-sm font-medium">Password</label>
               <input
                 required
@@ -156,7 +208,7 @@ export default function SignupPage() {
 
             <button
               disabled={loading}
-              className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-black transition disabled:opacity-60"
+              className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-inkDeep transition disabled:opacity-60"
             >
               {loading ? "Creating account…" : "Create account"}
             </button>

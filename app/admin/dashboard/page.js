@@ -6,10 +6,15 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabaseClient";
 import { GRADE_OPTIONS } from "@/lib/constants";
 import Logo from "@/components/Logo";
+import { isSuperAdmin, useViewer } from "@/lib/useViewer";
+import GradeCompletionTable, { byFirstName } from "@/components/GradeCompletionTable";
 
 export default function AdminDashboard() {
   const supabase = createClient();
   const router = useRouter();
+
+  const viewer = useViewer();
+  const superAdmin = isSuperAdmin(viewer);
 
   const [students, setStudents] = useState([]);
   const [search, setSearch] = useState("");
@@ -53,7 +58,11 @@ export default function AdminDashboard() {
     const matchesSearch = `${s.full_name} ${s.email}`
       .toLowerCase()
       .includes(search.toLowerCase());
-    const matchesGrade = gradeFilter === "all" || s.grade === gradeFilter;
+    const matchesGrade =
+      gradeFilter === "all" ||
+      (gradeFilter === "none"
+        ? !GRADE_OPTIONS.includes(s.grade)
+        : s.grade === gradeFilter);
     return matchesSearch && matchesGrade;
   });
 
@@ -62,10 +71,10 @@ export default function AdminDashboard() {
   const groups = GRADE_OPTIONS.map((g) => ({
     key: g,
     label: `Grade ${g}`,
-    rows: filtered.filter((s) => s.grade === g),
+    rows: filtered.filter((s) => s.grade === g).sort(byFirstName),
   }));
-  const ungraded = filtered.filter((s) => !GRADE_OPTIONS.includes(s.grade));
-  if (ungraded.length > 0 && gradeFilter === "all") {
+  const ungraded = filtered.filter((s) => !GRADE_OPTIONS.includes(s.grade)).sort(byFirstName);
+  if (ungraded.length > 0) {
     groups.push({ key: "none", label: "Grade not set", rows: ungraded });
   }
 
@@ -77,9 +86,9 @@ export default function AdminDashboard() {
     <main className="min-h-screen bg-cream p-6 md:p-10">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <Logo className="h-8 mb-1" />
+          <Logo className="h-10 mb-1" />
           <p className="text-xs uppercase tracking-wide text-neutral-500">
-            School staff · view only
+            {superAdmin ? "Super admin · full access" : "School staff · view only"}
           </p>
         </div>
         <button onClick={handleLogout} className="text-sm text-neutral-500 hover:text-ink">
@@ -107,8 +116,13 @@ export default function AdminDashboard() {
           <div>
             <h2 className="font-medium">Students ({filtered.length})</h2>
             <p className="text-xs text-neutral-500 mt-0.5">
-              You can open and download any profile. Editing and deleting are
-              disabled for staff accounts.
+              {superAdmin
+                ? "You can open, download, correct and remove any student's data."
+                : "You can open and download any profile. Editing and deleting are disabled for staff accounts."}
+            </p>
+            <p className="text-xs text-neutral-500 mt-0.5">
+              Pick a single grade to see that grade&apos;s completion table —
+              every section, with a tick where the student has saved it.
             </p>
           </div>
           <div className="flex gap-2">
@@ -123,6 +137,7 @@ export default function AdminDashboard() {
                   Grade {g}
                 </option>
               ))}
+              <option value="none">Grade not set</option>
             </select>
             <input
               value={search}
@@ -135,6 +150,13 @@ export default function AdminDashboard() {
 
         {loading ? (
           <p className="text-neutral-500 text-sm">Loading…</p>
+        ) : gradeFilter !== "all" ? (
+          <GradeCompletionTable
+            students={visibleGroups[0]?.rows || []}
+            gradeLabel={
+              gradeFilter === "none" ? "Grade not set" : `Grade ${gradeFilter}`
+            }
+          />
         ) : visibleGroups.length === 0 ? (
           <p className="text-sm text-neutral-500 py-4">No students found.</p>
         ) : (
@@ -157,7 +179,10 @@ export default function AdminDashboard() {
                         </span>
                         <div className="min-w-0">
                           <p className="font-medium truncate">{s.full_name || "Unnamed student"}</p>
-                          <p className="text-sm text-neutral-500 truncate">{s.email}</p>
+                          <p className="text-sm text-neutral-500 truncate">
+                            {s.uid ? `UID ${s.uid} · ` : ""}
+                            {s.email}
+                          </p>
                         </div>
                       </div>
                       <span className="text-sm text-neutral-400 shrink-0 ml-4">View →</span>

@@ -9,7 +9,7 @@ export default function ChoosePage() {
 
       <main className="min-h-screen flex flex-col items-center justify-center px-6 py-16">
         <Link href="/" className="mb-3">
-          <Logo className="h-10" />
+          <Logo className="h-14" />
         </Link>
         <p className="text-sm text-neutral-500 mb-10">How are you signing in?</p>
 
@@ -34,7 +34,7 @@ export default function ChoosePage() {
 
           <Link
             href="/admin/login"
-            className="group bg-ink text-white rounded-3xl p-7 hover:bg-black hover:-translate-y-0.5 transition-all shadow-sm"
+            className="group bg-ink text-white rounded-3xl p-7 hover:bg-inkDeep hover:-translate-y-0.5 transition-all shadow-sm"
           >
             <span className="inline-grid place-items-center w-11 h-11 rounded-2xl bg-white/10 text-clayLight text-lg mb-4">
               🏫

@@ -53,8 +53,11 @@ export default function ResumePage() {
   async function handleDownload() {
     if (!model) return;
     setDownloading(true);
-    downloadResumePdf(model);
-    setDownloading(false);
+    try {
+      await downloadResumePdf(model);
+    } finally {
+      setDownloading(false);
+    }
   }
 
   if (!model) return <main className="p-10 text-neutral-500">Loading…</main>;
@@ -71,7 +74,7 @@ export default function ResumePage() {
         <button
           onClick={handleDownload}
           disabled={downloading}
-          className="rounded-xl bg-ink text-white px-5 py-2.5 text-sm font-medium hover:bg-black transition disabled:opacity-60"
+          className="rounded-xl bg-ink text-white px-5 py-2.5 text-sm font-medium hover:bg-inkDeep transition disabled:opacity-60"
         >
           {downloading ? "Preparing…" : "Download PDF"}
         </button>

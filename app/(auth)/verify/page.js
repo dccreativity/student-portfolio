@@ -1,8 +1,10 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabaseClient";
+import { isStaffRole } from "@/lib/constants";
+import { friendlyAuthError } from "@/lib/authErrors";
 import Logo from "@/components/Logo";
 
 function VerifyForm() {
@@ -19,6 +21,61 @@ function VerifyForm() {
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // What happens once the address is confirmed, however it was confirmed —
+  // by typing the code below, or by clicking the link in the email.
+  //
+  // Supabase's built-in email service can only send its default template,
+  // which carries a link rather than a {{ .Token }} code, so this page has
+  // to handle both. The link brings the student back here with a session
+  // already established; there is nothing left to verify at that point.
+  const finish = useCallback(async () => {
+    if (next === "/admin/login") {
+      // Whitelisted staff are auto-approved by the database trigger the
+      // moment they verify. Anyone else who signed up via /admin/signup
+      // is silently a plain student account — tell them clearly instead
+      // of letting them wonder why /admin/login rejects them.
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      await supabase.auth.signOut();
+
+      if (!isStaffRole(profile?.role)) {
+        setError(
+          "This email isn't on the approved staff list, so it can't get admin access. Contact your super admin if this seems wrong."
+        );
+        return;
+      }
+    }
+    window.location.assign(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [next]);
+
+  // Arriving from the link in the email: the session is already there.
+  useEffect(() => {
+    const hash = typeof window === "undefined" ? "" : window.location.hash;
+    if (!params.has("code") && !hash.includes("access_token")) return;
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN") finish();
+    });
+
+    // The exchange can complete before the listener is attached.
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) finish();
+    });
+
+    return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finish]);
 
   async function handleVerify(e) {
     e.preventDefault();
@@ -38,30 +95,7 @@ function VerifyForm() {
       return;
     }
 
-    if (next === "/admin/login") {
-      // Whitelisted staff are auto-approved by the database trigger the
-      // moment they verify. Anyone else who signed up via /admin/signup
-      // is silently a plain student account — tell them clearly instead
-      // of letting them wonder why /admin/login rejects them.
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
-
-      await supabase.auth.signOut();
-
-      if (profile?.role !== "admin") {
-        setError(
-          "This email isn't on the approved staff list, so it can't get admin access. Contact your super admin if this seems wrong."
-        );
-        return;
-      }
-    }
-    window.location.assign(next);
+    await finish();
   }
 
   async function handleResend() {
@@ -72,7 +106,7 @@ function VerifyForm() {
       email,
     });
     if (resendError) {
-      setError(resendError.message);
+      setError(friendlyAuthError(resendError, "verification code"));
     } else {
       setInfo("A new code has been sent to your email.");
     }
@@ -81,7 +115,7 @@ function VerifyForm() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-cream px-6">
       <div className="w-full max-w-md bg-white/70 backdrop-blur-xl border border-line rounded-3xl p-8 shadow-sm">
-        <Logo className="h-9 mb-6" />
+        <Logo className="h-12 mb-6" />
         <h1 className="font-display text-3xl mb-2">Check your inbox</h1>
         <p className="text-sm text-neutral-600 mb-6">
           Enter the 6-digit code we sent to <span className="font-medium">{email}</span>.
@@ -103,7 +137,7 @@ function VerifyForm() {
 
           <button
             disabled={loading}
-            className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-black transition disabled:opacity-60"
+            className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-inkDeep transition disabled:opacity-60"
           >
             {loading ? "Verifying…" : "Verify email"}
           </button>

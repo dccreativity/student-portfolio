@@ -23,6 +23,8 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  // Set by the reset page so the change is visibly confirmed.
+  const justReset = params.get("reset") === "1";
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -61,7 +63,7 @@ function LoginForm() {
     <main className="min-h-screen grid lg:grid-cols-2 bg-cream">
       <PhotoBackdrop
         src={UNSPLASH_IMAGES.authHero}
-        gradient="from-clay via-[#B4643C] to-ink"
+        gradient="from-clay via-[#532B88] to-ink"
         overlay="bg-ink/45"
         className="hidden lg:block"
       >
@@ -74,7 +76,7 @@ function LoginForm() {
 
       <div className="flex items-center justify-center px-6 py-16">
         <div className="w-full max-w-md">
-          <Logo className="h-10 mb-6" />
+          <Logo className="h-12 mb-6" />
           <h1 className="font-display text-3xl mb-6">Welcome back</h1>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -89,7 +91,15 @@ function LoginForm() {
               />
             </div>
             <div>
-              <label className="text-sm font-medium">Password</label>
+              <div className="flex items-baseline justify-between">
+                <label className="text-sm font-medium">Password</label>
+                <Link
+                  href="/forgot-password?next=%2Flogin"
+                  className="text-xs text-clay font-medium hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
               <input
                 required
                 type="password"
@@ -99,11 +109,16 @@ function LoginForm() {
               />
             </div>
 
+            {justReset && !error && (
+              <p className="text-sm text-green-700">
+                Password updated. Log in with your new password.
+              </p>
+            )}
             {error && <p className="text-sm text-red-600">{error}</p>}
 
             <button
               disabled={loading}
-              className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-black transition disabled:opacity-60"
+              className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-inkDeep transition disabled:opacity-60"
             >
               {loading ? "Logging in…" : "Log in"}
             </button>

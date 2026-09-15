@@ -29,7 +29,8 @@ declare
 begin
   wants_admin := coalesce((new.raw_user_meta_data->>'request_admin')::boolean, false);
   is_whitelisted := exists (
-    select 1 from public.admin_allowlist where email = lower(new.email)
+    select 1 from public.admin_allowlist
+     where lower(trim(email)) = lower(trim(new.email))
   );
 
   insert into public.profiles (id, email, full_name, grade, role, status)

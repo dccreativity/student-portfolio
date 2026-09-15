@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabaseClient";
 import {
   BUCKET,
@@ -13,7 +13,17 @@ import {
 
 // `readOnly` is used by the admin's per-student view — admins can browse
 // a student's galleries but never upload, edit captions, or delete.
-export default function MediaGallery({ userId, sectionKey, mediaType, readOnly = false }) {
+//
+// `allowUpload` is separate because the super admin's job is to correct
+// and remove what a student has put in, not to add photographs to
+// someone else's portfolio.
+export default function MediaGallery({
+  userId,
+  sectionKey,
+  mediaType,
+  readOnly = false,
+  allowUpload = true,
+}) {
   const supabase = createClient();
   const fileInput = useRef(null);
 
@@ -22,33 +32,42 @@ export default function MediaGallery({ userId, sectionKey, mediaType, readOnly =
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
 
+  // Hoisted out of the effect so a failed delete can put the gallery
+  // back the way it was.
+  const mounted = useRef(true);
   useEffect(() => {
-    let channel;
-    let cancelled = false;
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
-    async function load() {
-      const { data } = await supabase
-        .from("portfolio_media")
-        .select("*")
-        .eq("user_id", userId)
-        .eq("section", sectionKey)
-        .order("created_at", { ascending: false });
+  const load = useCallback(async () => {
+    const { data } = await supabase
+      .from("portfolio_media")
+      .select("*")
+      .eq("user_id", userId)
+      .eq("section", sectionKey)
+      .order("created_at", { ascending: false });
 
-      const rows = data || [];
-      // The bucket is private: every row needs a freshly signed link
-      // before it can be shown.
-      const map = await signPaths(supabase, rows.map(storagePathOf));
-      if (cancelled) return;
-      setItems(
-        rows.map((r) => {
-          const path = storagePathOf(r);
-          return { ...r, view_url: (path && map.get(path)) || r.file_url };
-        })
-      );
-    }
+    const rows = data || [];
+    // The bucket is private: every row needs a freshly signed link
+    // before it can be shown.
+    const map = await signPaths(supabase, rows.map(storagePathOf));
+    if (!mounted.current) return;
+    setItems(
+      rows.map((r) => {
+        const path = storagePathOf(r);
+        return { ...r, view_url: (path && map.get(path)) || r.file_url };
+      })
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, sectionKey]);
 
+  useEffect(() => {
     load();
-    channel = supabase
+
+    const channel = supabase
       .channel(`media-${sectionKey}-${userId}`)
       .on(
         "postgres_changes",
@@ -58,15 +77,26 @@ export default function MediaGallery({ userId, sectionKey, mediaType, readOnly =
           table: "portfolio_media",
           filter: `user_id=eq.${userId}`,
         },
-        () => load()
+        (payload) => {
+          // A DELETE is applied without a round trip, so a removed photo
+          // does not flash back while the reload is in flight. (The
+          // filter above only matches DELETE payloads because the table
+          // now replicates its full row — see
+          // supabase/migration-superadmin-uid-realtime.sql.)
+          if (payload.eventType === "DELETE" && payload.old?.id != null) {
+            setItems((prev) => prev.filter((it) => it.id !== payload.old.id));
+            return;
+          }
+          load();
+        }
       )
       .subscribe();
 
     return () => {
-      cancelled = true;
-      if (channel) supabase.removeChannel(channel);
+      supabase.removeChannel(channel);
     };
-  }, [userId, sectionKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, sectionKey, load]);
 
   async function handleUpload(e) {
     const files = Array.from(e.target.files || []);
@@ -124,12 +154,19 @@ export default function MediaGallery({ userId, sectionKey, mediaType, readOnly =
   }
 
   async function handleDelete(item) {
+    // Drop it from view immediately. Waiting for the realtime echo means
+    // the student stares at a photo they have already deleted; if the
+    // delete turns out to have failed it is put straight back below.
+    setItems((prev) => prev.filter((it) => it.id !== item.id));
+
     const { error: deleteError } = await supabase
       .from("portfolio_media")
       .delete()
       .eq("id", item.id);
+
     if (deleteError) {
       setError(`Couldn't remove that file: ${deleteError.message}`);
+      load();
       return;
     }
     // Free the storage object too, so removed files don't keep counting
@@ -146,9 +183,9 @@ export default function MediaGallery({ userId, sectionKey, mediaType, readOnly =
         <p className="text-xs uppercase tracking-wide text-neutral-400 mb-4">View only</p>
       )}
 
-      {!readOnly && (
+      {!readOnly && allowUpload && (
         <div className="flex flex-wrap items-center gap-4">
-          <label className="inline-block rounded-xl bg-ink text-white px-5 py-2.5 text-sm font-medium hover:bg-black transition cursor-pointer">
+          <label className="inline-block rounded-xl bg-ink text-white px-5 py-2.5 text-sm font-medium hover:bg-inkDeep transition cursor-pointer">
             {uploading ? status || "Uploading…" : `Upload ${noun}s`}
             <input
               ref={fileInput}
@@ -179,7 +216,7 @@ export default function MediaGallery({ userId, sectionKey, mediaType, readOnly =
                 className="w-full h-40 object-cover"
               />
             ) : (
-              <video src={item.view_url} controls className="w-full h-40 object-cover bg-black" />
+              <video src={item.view_url} controls className="w-full h-40 object-cover bg-inkDeep" />
             )}
             <div className="p-3 space-y-2">
               {readOnly ? (

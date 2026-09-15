@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabaseClient";
 import { getSectionMeta } from "@/lib/sectionSchema";
 import { attachmentsOf, withAttachments } from "@/lib/uploads";
 import FileAttachments from "@/components/FileAttachments";
+import EducationEditor from "@/components/EducationEditor";
+import BulletListInput from "@/components/BulletListInput";
 
 function emptyEntry(fields) {
   const e = {};
@@ -13,6 +15,18 @@ function emptyEntry(fields) {
 }
 
 function FieldInput({ field, value, onChange, readOnly }) {
+  // Statement fields are a list of points, whether being edited or read.
+  if (field.bullets) {
+    return (
+      <BulletListInput
+        value={value}
+        onChange={onChange}
+        placeholder={field.label}
+        readOnly={readOnly}
+      />
+    );
+  }
+
   if (readOnly) {
     return (
       <div className="w-full rounded-xl border border-line bg-cream/40 px-3 py-2 text-sm min-h-[38px] text-neutral-700 whitespace-pre-wrap">
@@ -20,17 +34,60 @@ function FieldInput({ field, value, onChange, readOnly }) {
       </div>
     );
   }
-  if (field.long) {
+
+  if (field.options) {
     return (
-      <textarea
+      <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={field.label}
-        rows={4}
         className="w-full rounded-xl border border-line bg-white/80 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-clay"
-      />
+      >
+        <option value="">Select {field.label.toLowerCase()}</option>
+        {field.options.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </select>
     );
   }
+
+  if (field.long) {
+    const limit = field.maxLength;
+    const used = (value || "").length;
+    // The count is derived from the value on every render, so it moves as
+    // the student types rather than on blur.
+    const nearLimit = limit && used > limit * 0.9;
+    return (
+      <div>
+        <textarea
+          value={value}
+          onChange={(e) =>
+            onChange(limit ? e.target.value.slice(0, limit) : e.target.value)
+          }
+          placeholder={field.label}
+          rows={limit ? 8 : 4}
+          maxLength={limit}
+          className="w-full rounded-xl border border-line bg-white/80 px-3 py-2.5 text-sm leading-relaxed outline-none focus:ring-2 focus:ring-clay"
+        />
+        {limit && (
+          <p
+            className={`mt-1 text-xs text-right ${
+              used >= limit
+                ? "text-red-600 font-medium"
+                : nearLimit
+                ? "text-clay"
+                : "text-neutral-400"
+            }`}
+          >
+            {used} / {limit} characters
+            {used >= limit && " — limit reached"}
+          </p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <input
       value={value}
@@ -75,7 +132,7 @@ function RepeatableTable({ fields, entries, onChange, readOnly, userId, pathPref
           )}
           <div className="grid sm:grid-cols-2 gap-3 pr-6">
             {fields.map((f) => (
-              <div key={f.key} className={f.long ? "sm:col-span-2" : ""}>
+              <div key={f.key} className={f.long || f.bullets ? "sm:col-span-2" : ""}>
                 <label className="text-xs text-neutral-500">{f.label}</label>
                 <FieldInput
                   field={f}
@@ -144,12 +201,53 @@ export default function SectionEditor({ userId, sectionKey, readOnly = false }) 
     function defaultContent() {
       if (meta.type === "single") return {};
       if (meta.type === "repeatable") return { entries: [] };
+      if (meta.type === "education") return { records: [] };
       if (meta.type === "mixed") {
         const base = {};
         meta.repeatableGroups.forEach((g) => (base[g.key] = []));
         return base;
       }
       return {};
+    }
+
+    // Education used to store a flat list of {year, subject, grade} rows
+    // plus a separate diploma-course list. Fold those into the per-year
+    // records the section uses now, so nothing a student already entered
+    // is lost the first time they open the page.
+    function migrate(content) {
+      if (!content || meta.type !== "education") return content;
+      if (Array.isArray(content.records)) return content;
+
+      const byYear = new Map();
+      (content.grades || []).forEach((g) => {
+        const year = String(g.year || "").trim() || "Earlier";
+        if (!byYear.has(year)) byYear.set(year, []);
+        byYear.get(year).push({ subject: g.subject || "", level: "", grade: g.grade || "" });
+      });
+
+      const records = [...byYear.entries()].map(([year, subjects]) => ({
+        year,
+        programme: "",
+        subjects,
+      }));
+
+      const courses = content.diploma_courses || [];
+      if (courses.length > 0) {
+        records.push({
+          year: "",
+          programme: "IBDP 1",
+          subjects: courses.map((c) => ({
+            subject: c.course || "",
+            level: c.level || "",
+            grade: "",
+          })),
+        });
+      }
+
+      const next = { ...content, records };
+      delete next.grades;
+      delete next.diploma_courses;
+      return next;
     }
 
     async function load() {
@@ -161,7 +259,7 @@ export default function SectionEditor({ userId, sectionKey, readOnly = false }) 
         .maybeSingle();
 
       if (cancelled) return;
-      setContent(row?.content ?? defaultContent());
+      setContent(migrate(row?.content) ?? defaultContent());
       setDirty(false);
       setLoading(false);
 
@@ -250,7 +348,7 @@ export default function SectionEditor({ userId, sectionKey, readOnly = false }) 
       {meta.type === "single" && (
         <div className="grid sm:grid-cols-2 gap-4">
           {meta.fields.map((f) => (
-            <div key={f.key} className={f.long ? "sm:col-span-2" : ""}>
+            <div key={f.key} className={f.long || f.bullets ? "sm:col-span-2" : ""}>
               <label className="text-xs text-neutral-500">{f.label}</label>
               <FieldInput
                 field={f}
@@ -272,6 +370,38 @@ export default function SectionEditor({ userId, sectionKey, readOnly = false }) 
           userId={userId}
           pathPrefix={sectionKey}
         />
+      )}
+
+      {meta.type === "education" && (
+        <div className="space-y-8">
+          <div className="grid sm:grid-cols-2 gap-4">
+            {meta.fields.map((f) => (
+              <div key={f.key}>
+                <label className="text-xs text-neutral-500">{f.label}</label>
+                <FieldInput
+                  field={f}
+                  value={content[f.key] ?? ""}
+                  onChange={(v) => edit((prev) => ({ ...prev, [f.key]: v }))}
+                  readOnly={readOnly}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div>
+            <h3 className="font-medium mb-1">Academic record</h3>
+            <p className="text-sm text-neutral-500 mb-3">
+              One entry per year, with the programme you sat and the grades you
+              achieved in it.
+            </p>
+            <EducationEditor
+              records={content.records || []}
+              onChange={(records) => edit((prev) => ({ ...prev, records }))}
+              readOnly={readOnly}
+              userId={userId}
+            />
+          </div>
+        </div>
       )}
 
       {meta.type === "mixed" && (
@@ -309,7 +439,7 @@ export default function SectionEditor({ userId, sectionKey, readOnly = false }) 
       {/* Section-level files. Repeatable sections attach evidence per
           entry above; the single/mixed sections (Header, Objective,
           Education) had no upload option at all before this. */}
-      {(meta.type === "single" || meta.type === "mixed") && (
+      {(meta.type === "single" || meta.type === "mixed" || meta.type === "education") && (
         <div className="mt-6 border-t border-line pt-4">
           <p className="text-xs text-neutral-500">Supporting documents</p>
           <FileAttachments
@@ -329,7 +459,7 @@ export default function SectionEditor({ userId, sectionKey, readOnly = false }) 
             type="button"
             onClick={handleSave}
             disabled={saving || !dirty}
-            className="rounded-xl bg-ink text-white px-5 py-2.5 text-sm font-medium hover:bg-black transition disabled:opacity-40 disabled:cursor-not-allowed"
+            className="rounded-xl bg-ink text-white px-5 py-2.5 text-sm font-medium hover:bg-inkDeep transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {saving ? "Saving…" : dirty ? "Save changes" : "Saved"}
           </button>

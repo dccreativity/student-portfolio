@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabaseServer";
+import { isStaffRole } from "@/lib/constants";
 import BreathingBackground from "@/components/BreathingBackground";
 import Logo from "@/components/Logo";
 
@@ -17,7 +18,7 @@ export default async function Home() {
       .eq("id", user.id)
       .single();
 
-    if (profile?.role === "admin" && profile?.status === "approved") {
+    if (isStaffRole(profile?.role) && profile?.status === "approved") {
       redirect("/admin/dashboard");
     }
     redirect("/dashboard");
@@ -29,7 +30,7 @@ export default async function Home() {
 
       <main className="min-h-screen flex flex-col">
         <header className="flex items-center justify-between px-6 md:px-12 py-6">
-          <Logo className="h-8 md:h-9" />
+          <Logo className="h-10 md:h-12" />
           <Link
             href="/choose"
             className="rounded-full border border-ink/10 bg-white/60 backdrop-blur px-5 py-2 text-sm font-medium hover:bg-white hover:border-ink/20 transition"
@@ -77,7 +78,7 @@ export default async function Home() {
 
               <Link
                 href="/admin/login"
-                className="group bg-ink text-white rounded-3xl p-7 hover:bg-black hover:-translate-y-0.5 transition-all shadow-sm"
+                className="group bg-ink text-white rounded-3xl p-7 hover:bg-inkDeep hover:-translate-y-0.5 transition-all shadow-sm"
               >
                 <span className="inline-grid place-items-center w-11 h-11 rounded-2xl bg-white/10 text-clayLight text-lg mb-4">
                   🏫

@@ -18,14 +18,19 @@ const body = Instrument_Sans({
   display: "swap",
 });
 
+// One title for the whole site. Every page — sign-in, dashboard, a
+// section, the resume — shows "ADIS Student Portfolio" in the tab, so the
+// browser tab reads the same wherever a student or admin happens to be.
+// The school crest that sits beside it comes from app/icon.png,
+// app/apple-icon.png and app/favicon.ico, which Next serves automatically.
 export const metadata = {
-  title: "folio. — Student Portfolio",
+  title: "ADIS Student Portfolio",
   description:
     "One place for every Adani International School student to build, showcase and share their academic journey.",
 };
 
 export const viewport = {
-  themeColor: "#F6EFE6",
+  themeColor: "#F4EFFA",
 };
 
 export default function RootLayout({ children }) {

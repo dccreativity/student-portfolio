@@ -4,12 +4,12 @@
 
 html,
 body {
-  color: #1c1b1a;
+  color: #2f184b;
   margin: 0;
 }
 
 body {
-  background: #f6efe6;
+  background: #f4effa;
 }
 
 /* ---------------------------------------------------------------
@@ -29,7 +29,7 @@ body {
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
-  background: linear-gradient(160deg, #f8f2e9 0%, #f6efe6 45%, #f3e9dd 100%);
+  background: linear-gradient(160deg, #faf7fd 0%, #f4effa 45%, #ece3f7 100%);
 }
 
 .breathing-bg span {
@@ -44,7 +44,7 @@ body {
   height: 52vw;
   top: -14%;
   left: -10%;
-  background: radial-gradient(circle at 30% 30%, #f2b694 0%, rgba(242, 182, 148, 0) 70%);
+  background: radial-gradient(circle at 30% 30%, #c8b1e4 0%, rgba(200, 177, 228, 0) 70%);
   animation: breathe 11s ease-in-out infinite;
 }
 
@@ -53,7 +53,7 @@ body {
   height: 44vw;
   bottom: -16%;
   right: -8%;
-  background: radial-gradient(circle at 60% 60%, #cbb8e8 0%, rgba(203, 184, 232, 0) 70%);
+  background: radial-gradient(circle at 60% 60%, #9b72cf 0%, rgba(155, 114, 207, 0) 70%);
   animation: breatheSlow 15s ease-in-out infinite;
 }
 
@@ -62,7 +62,7 @@ body {
   height: 40vw;
   top: 32%;
   left: 42%;
-  background: radial-gradient(circle at 50% 50%, #e07a45 0%, rgba(224, 122, 69, 0) 68%);
+  background: radial-gradient(circle at 50% 50%, #532b88 0%, rgba(83, 43, 136, 0) 68%);
   opacity: 0.35;
   animation: breatheDrift 19s ease-in-out infinite;
 }

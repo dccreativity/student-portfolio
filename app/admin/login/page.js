@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabaseClient";
+import { isStaffRole } from "@/lib/constants";
 import Logo from "@/components/Logo";
 
 function AdminLoginForm() {
@@ -42,7 +43,7 @@ function AdminLoginForm() {
 
     setLoading(false);
 
-    if (profile?.role !== "admin") {
+    if (!isStaffRole(profile?.role)) {
       // Students land here if they try the staff door. Sign them straight
       // back out — an admin session is never created for them.
       setError(
@@ -52,7 +53,14 @@ function AdminLoginForm() {
       return;
     }
     if (profile?.status !== "approved") {
-      setError("This staff account isn't active. Contact your school administrator.");
+      // Reachable by staff accounts created before access moved to the
+      // email allowlist, which were left waiting for a manual approval
+      // step that no longer exists. Name the remedy rather than leaving
+      // the person — often the administrator themselves — at a dead end.
+      setError(
+        "This staff account hasn't been activated yet. Ask your school administrator " +
+          "to add this address to the staff list (supabase/add-staff.sql)."
+      );
       await supabase.auth.signOut();
       return;
     }
@@ -65,7 +73,7 @@ function AdminLoginForm() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-cream px-6">
       <div className="w-full max-w-md bg-white/70 backdrop-blur-xl border border-line rounded-3xl p-8 shadow-sm">
-        <Logo className="h-9 mb-1" />
+        <Logo className="h-12 mb-2" />
         <p className="text-xs uppercase tracking-wide text-neutral-500 mb-6">Staff / Admin</p>
         <h1 className="font-display text-3xl mb-6">Staff login</h1>
 
@@ -81,7 +89,15 @@ function AdminLoginForm() {
             />
           </div>
           <div>
-            <label className="text-sm font-medium">Password</label>
+            <div className="flex items-baseline justify-between">
+              <label className="text-sm font-medium">Password</label>
+              <Link
+                href="/forgot-password?next=%2Fadmin%2Flogin"
+                className="text-xs text-clay font-medium hover:underline"
+              >
+                Forgot password?
+              </Link>
+            </div>
             <input
               required
               type="password"
@@ -91,11 +107,16 @@ function AdminLoginForm() {
             />
           </div>
 
+          {params.get("reset") === "1" && !error && (
+            <p className="text-sm text-green-700">
+              Password updated. Log in with your new password.
+            </p>
+          )}
           {error && <p className="text-sm text-red-600">{error}</p>}
 
           <button
             disabled={loading}
-            className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-black transition disabled:opacity-60"
+            className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-inkDeep transition disabled:opacity-60"
           >
             {loading ? "Logging in…" : "Log in"}
           </button>

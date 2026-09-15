@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabaseClient";
 import { ALLOWED_EMAIL_DOMAIN, isAllowedSchoolEmail } from "@/lib/constants";
+import { friendlyAuthError } from "@/lib/authErrors";
 import Logo from "@/components/Logo";
 
 // Deliberately separate from the student /signup page and never linked
@@ -38,18 +39,37 @@ export default function AdminSignupPage() {
       email,
       password,
       options: {
+        // Where the link in the confirmation email comes back to.
+        // Supabase's built-in email service can only send its default
+        // template, which carries a link rather than a code, so the link
+        // has to land somewhere that can finish the job. This exact
+        // address must be listed under Authentication -> URL Configuration
+        // -> Redirect URLs in Supabase, or the link is refused.
+        emailRedirectTo: `${window.location.origin}/verify?email=${encodeURIComponent(
+          email
+        )}&next=%2Fadmin%2Flogin`,
         data: { full_name: fullName, request_admin: true },
       },
     });
     setLoading(false);
 
     if (signUpError) {
-      setError(signUpError.message);
+      setError(friendlyAuthError(signUpError, "verification code"));
       return;
     }
 
     if (data?.user && data.user.identities && data.user.identities.length === 0) {
       setError("An account with this email already exists. Try logging in instead.");
+      return;
+    }
+
+    // With email confirmation switched off in Supabase, sign-up
+    // returns a session immediately and no code is sent — so there is
+    // nothing to verify and the account is ready to use. Sending them
+    // to /verify would strand them waiting for a code that is never
+    // coming.
+    if (data?.session) {
+      window.location.assign("/admin/login");
       return;
     }
 
@@ -59,7 +79,7 @@ export default function AdminSignupPage() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-cream px-6">
       <div className="w-full max-w-md bg-white/70 backdrop-blur-xl border border-line rounded-3xl p-8 shadow-sm">
-        <Logo className="h-9 mb-6" />
+        <Logo className="h-12 mb-6" />
         <h1 className="font-display text-3xl mb-2">Staff account</h1>
         <p className="text-sm text-neutral-600 mb-6">
           Staff access is granted by email in advance. Use the exact address
@@ -116,7 +136,7 @@ export default function AdminSignupPage() {
 
           <button
             disabled={loading}
-            className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-black transition disabled:opacity-60"
+            className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-inkDeep transition disabled:opacity-60"
           >
             {loading ? "Creating account…" : "Create staff account"}
           </button>

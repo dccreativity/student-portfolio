@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
+import { isStaffRole } from "@/lib/constants";
 
 // Deny by default: every route needs a session except the handful below,
 // which are the only pages someone must be able to reach in order to get
@@ -11,6 +12,7 @@ const PUBLIC_PATHS = new Set([
   "/login",
   "/signup",
   "/verify",
+  "/forgot-password",
   "/admin/login",
   "/admin/signup",
 ]);
@@ -52,8 +54,13 @@ export async function middleware(request) {
 
   const path = request.nextUrl.pathname;
   const publicPath = isPublic(path);
+  // /api/admin/* is staff-only too. The route handlers check the caller
+  // themselves — that check is the real gate — but guarding the whole
+  // prefix here means a route added later is staff-only by default rather
+  // than only if someone remembers.
   const adminArea =
-    path.startsWith("/admin") && !PUBLIC_ADMIN_PATHS.some((p) => path === p);
+    (path.startsWith("/admin") || path.startsWith("/api/admin")) &&
+    !PUBLIC_ADMIN_PATHS.some((p) => path === p);
 
   // Not signed in and asking for anything private: send them to the right
   // front door and remember where they were headed.
@@ -76,17 +83,18 @@ export async function middleware(request) {
     profile = data;
   }
 
+  // Both staff roles reach the staff side. Testing for role === "admin"
+  // alone would lock the super admin out of the admin area entirely,
+  // since their role is "superadmin".
+  const isStaff = isStaffRole(profile?.role) && profile?.status === "approved";
+
   // Students can never reach the staff side, whatever URL they type.
-  if (adminArea && (!profile || profile.role !== "admin" || profile.status !== "approved")) {
+  if (adminArea && !isStaff) {
     return NextResponse.redirect(new URL("/admin/login?denied=1", request.url));
   }
 
   // A staff account has no portfolio of its own to edit.
-  if (
-    path.startsWith("/dashboard") &&
-    profile?.role === "admin" &&
-    profile?.status === "approved"
-  ) {
+  if (path.startsWith("/dashboard") && isStaff) {
     return NextResponse.redirect(new URL("/admin/dashboard", request.url));
   }
 
@@ -94,10 +102,11 @@ export async function middleware(request) {
 }
 
 export const config = {
-  // Everything except Next's own build output, the favicon and files in
-  // /public. Those carry no student data, and excluding them keeps the
-  // auth check off every image request.
+  // Everything except Next's own build output, the favicon and the logo
+  // files in /public (logo.png, logo-color.png, logo-white.png). Those
+  // carry no student data, and excluding them keeps the auth check off
+  // every image request.
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|logo.png|robots.txt|sitemap.xml).*)",
+    "/((?!_next/static|_next/image|favicon.ico|logo|robots.txt|sitemap.xml).*)",
   ],
 };
