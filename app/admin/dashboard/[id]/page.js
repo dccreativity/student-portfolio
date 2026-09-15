@@ -8,7 +8,6 @@ import { SECTION_SCHEMA } from "@/lib/sectionSchema";
 import { getSectionBanner } from "@/lib/constants";
 import { buildResumeModel } from "@/lib/resumeData";
 import { isSuperAdmin, useViewer } from "@/lib/useViewer";
-import AccountTools from "@/components/AccountTools";
 import { downloadResumePdf } from "@/lib/generateResumePdf";
 import SectionEditor from "@/components/SectionEditor";
 import MediaGallery from "@/components/MediaGallery";
@@ -75,8 +74,6 @@ export default function AdminStudentView() {
             : "Admins can view but not edit or delete student data."}
         </span>
       </div>
-
-      {canEdit && <AccountTools student={student} />}
 
       <div className="grid md:grid-cols-[240px_1fr] gap-6">
         <nav className="space-y-1 max-h-[80vh] overflow-y-auto pr-1">

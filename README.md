@@ -99,37 +99,18 @@ for the whole project (Authentication → Rate Limits shows the number). It
 is fine for a few sign-ups a day and will fail the day a whole class
 registers at once.
 
-### Email is not required to run the site
+### No passwords anywhere
 
-Whatever happens to the mail server, the site keeps working.
+The super-admin **Account** panel, which existed to set a student's
+password when email was refusing to send, has been removed along with the
+server route behind it. With Google as the only way in, a password sets
+nothing anyone can use to log in — leaving the box there would just be a
+control that quietly does nothing.
 
-**Sign-up:** turning **Confirm email** off lets students sign up and go
-straight to their dashboard — no code, no waiting. Only
-`@adaniinternational.edu.in` addresses can register either way; that is
-enforced in the database, not by the email.
-
-**Forgotten passwords:** open the student in the admin area. As super
-admin you now get an **Account** panel: type a new password (or press
-**Suggest one**), press **Set password**, and tell them what it is. It
-also confirms their email address at the same time, which is what
-unblocks anyone who signed up but was never able to confirm.
-
-**One setting is needed before that panel works.** It uses a Supabase key
-that must never be in the browser, so it lives on the server only:
-
-1. Supabase → **Project Settings → API** → copy the **`service_role`**
-   key (the secret one, *not* `anon`)
-2. Vercel → your project → **Settings → Environment Variables** → add
-   **`SUPABASE_SERVICE_ROLE_KEY`** with that value
-3. **Redeploy**
-
-Do not put `NEXT_PUBLIC_` in front of that name and do not paste the key
-anywhere else — that prefix is what would ship it to every visitor's
-browser. Without the variable the panel simply says so; nothing else
-breaks.
-
-The panel checks the caller is the super admin before doing anything, so
-a student or an ordinary admin who found the address gets refused.
+That also means **`SUPABASE_SERVICE_ROLE_KEY` is no longer used**. Nothing
+breaks if you leave it in Vercel, but nothing needs it either, and the
+safest place for a key that bypasses every access rule is nowhere — so
+deleting it from Settings → Environment Variables is worth doing.
 
 ### What happened with Gmail, for the record
 
