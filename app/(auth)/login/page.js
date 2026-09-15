@@ -1,17 +1,20 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabaseClient";
-import { UNSPLASH_IMAGES } from "@/lib/constants";
+import { ALLOWED_EMAIL_DOMAIN, UNSPLASH_IMAGES } from "@/lib/constants";
+import GoogleButton from "@/components/GoogleButton";
 import Logo from "@/components/Logo";
 import PhotoBackdrop from "@/components/PhotoBackdrop";
 
+// Google is the only way in — there is no password to choose, forget or
+// reset, and no confirmation email to wait for. Students and staff both
+// already have a school Google account, and signing in with it proves the
+// address belongs to them, which is the only thing a password was ever
+// standing in for here.
 function LoginForm() {
-  const router = useRouter();
   const params = useSearchParams();
-  const supabase = createClient();
 
   // Middleware appends ?next= when it turns someone away from a private
   // page, so they land where they were going instead of the dashboard.
@@ -19,45 +22,8 @@ function LoginForm() {
   const rawNext = params.get("next") || "";
   const next = rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/dashboard";
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  // Set by the reset page so the change is visibly confirmed.
-  const justReset = params.get("reset") === "1";
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (signInError) {
-      setLoading(false);
-      if (signInError.message.toLowerCase().includes("email not confirmed")) {
-        router.push(
-          `/verify?email=${encodeURIComponent(email)}&next=${encodeURIComponent(next)}`
-        );
-        return;
-      }
-      setError(
-        /invalid login credentials/i.test(signInError.message)
-          ? "That email and password don't match an account. Check both, or create an account below."
-          : signInError.message
-      );
-      return;
-    }
-
-    // A hard navigation rather than router.push: the auth cookie is
-    // written by the browser client, and a client-side transition can
-    // reach the middleware before that cookie is readable — which is the
-    // classic Supabase + Next "logs in, bounces back to login" loop.
-    window.location.assign(next);
-  }
+  // Set by /auth/callback when Google sends someone back who cannot be let in.
+  const authError = params.get("authError");
 
   return (
     <main className="min-h-screen grid lg:grid-cols-2 bg-cream">
@@ -77,57 +43,32 @@ function LoginForm() {
       <div className="flex items-center justify-center px-6 py-16">
         <div className="w-full max-w-md">
           <Logo className="h-12 mb-6" />
-          <h1 className="font-display text-3xl mb-6">Welcome back</h1>
+          <h1 className="font-display text-3xl mb-2">Welcome back</h1>
+          <p className="text-sm text-neutral-600 mb-8">
+            Sign in with your school Google account — the one ending in{" "}
+            <span className="font-medium">@{ALLOWED_EMAIL_DOMAIN}</span>.
+          </p>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-sm font-medium">School email</label>
-              <input
-                required
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-line bg-white/80 px-4 py-2.5 outline-none focus:ring-2 focus:ring-clay"
-              />
+          {authError && (
+            <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+              <p className="text-sm text-red-700">{authError}</p>
             </div>
-            <div>
-              <div className="flex items-baseline justify-between">
-                <label className="text-sm font-medium">Password</label>
-                <Link
-                  href="/forgot-password?next=%2Flogin"
-                  className="text-xs text-clay font-medium hover:underline"
-                >
-                  Forgot password?
-                </Link>
-              </div>
-              <input
-                required
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-line bg-white/80 px-4 py-2.5 outline-none focus:ring-2 focus:ring-clay"
-              />
-            </div>
+          )}
 
-            {justReset && !error && (
-              <p className="text-sm text-green-700">
-                Password updated. Log in with your new password.
-              </p>
-            )}
-            {error && <p className="text-sm text-red-600">{error}</p>}
+          <GoogleButton next={next} label="Log in with Google" />
 
-            <button
-              disabled={loading}
-              className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-inkDeep transition disabled:opacity-60"
-            >
-              {loading ? "Logging in…" : "Log in"}
-            </button>
-          </form>
+          <div className="mt-8 rounded-2xl border border-line bg-white/50 p-4">
+            <p className="text-sm font-medium mb-1">First time here?</p>
+            <p className="text-sm text-neutral-600">
+              There is nothing to sign up for. Log in with your school Google
+              account and your portfolio is created for you.
+            </p>
+          </div>
 
-          <p className="text-sm text-neutral-600 mt-6">
-            New here?{" "}
-            <Link href="/signup" className="text-clay font-medium">
-              Create an account
+          <p className="text-sm text-neutral-600 mt-8">
+            School staff?{" "}
+            <Link href="/admin/login" className="text-clay font-medium">
+              Use the staff door
             </Link>
           </p>
         </div>

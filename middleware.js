@@ -10,15 +10,14 @@ const PUBLIC_PATHS = new Set([
   "/", // landing page — carries both login doors
   "/choose", // student vs staff chooser
   "/login",
-  "/signup",
-  "/verify",
-  "/forgot-password",
   "/admin/login",
-  "/admin/signup",
+  // Where Google returns people. Necessarily public: they have no session
+  // yet at the moment they arrive here — getting one is what it is for.
+  "/auth/callback",
 ]);
 
 // Staff pages that must stay reachable while logged out.
-const PUBLIC_ADMIN_PATHS = ["/admin/login", "/admin/signup"];
+const PUBLIC_ADMIN_PATHS = ["/admin/login"];
 
 function isPublic(path) {
   if (PUBLIC_PATHS.has(path)) return true;

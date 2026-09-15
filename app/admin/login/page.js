@@ -1,137 +1,63 @@
 "use client";
 
-import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabaseClient";
-import { isStaffRole } from "@/lib/constants";
+import { ALLOWED_EMAIL_DOMAIN } from "@/lib/constants";
+import GoogleButton from "@/components/GoogleButton";
 import Logo from "@/components/Logo";
 
+// The staff door. Same Google sign-in as the student one — what makes
+// someone staff is being on the allowlist in the database, not which page
+// they started from. A student who finds this page and signs in is simply
+// sent to their own dashboard.
 function AdminLoginForm() {
-  const router = useRouter();
   const params = useSearchParams();
-  const supabase = createClient();
-
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState(
-    params.get("denied") ? "That account isn't an approved administrator yet." : ""
-  );
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    const { data, error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (signInError) {
-      setLoading(false);
-      setError(signInError.message);
-      return;
-    }
-
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role, status")
-      .eq("id", data.user.id)
-      .single();
-
-    setLoading(false);
-
-    if (!isStaffRole(profile?.role)) {
-      // Students land here if they try the staff door. Sign them straight
-      // back out — an admin session is never created for them.
-      setError(
-        "This account does not have staff access. Students should log in through Student Login."
-      );
-      await supabase.auth.signOut();
-      return;
-    }
-    if (profile?.status !== "approved") {
-      // Reachable by staff accounts created before access moved to the
-      // email allowlist, which were left waiting for a manual approval
-      // step that no longer exists. Name the remedy rather than leaving
-      // the person — often the administrator themselves — at a dead end.
-      setError(
-        "This staff account hasn't been activated yet. Ask your school administrator " +
-          "to add this address to the staff list (supabase/add-staff.sql)."
-      );
-      await supabase.auth.signOut();
-      return;
-    }
-
-    // Full navigation, for the same cookie-timing reason as the student
-    // login page.
-    window.location.assign("/admin/dashboard");
-  }
+  const denied = params.get("denied") === "1";
+  const authError = params.get("authError");
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-cream px-6">
-      <div className="w-full max-w-md bg-white/70 backdrop-blur-xl border border-line rounded-3xl p-8 shadow-sm">
-        <Logo className="h-12 mb-2" />
-        <p className="text-xs uppercase tracking-wide text-neutral-500 mb-6">Staff / Admin</p>
-        <h1 className="font-display text-3xl mb-6">Staff login</h1>
+    <main className="min-h-screen grid place-items-center bg-ink px-6 py-16">
+      <div className="w-full max-w-md">
+        <div className="rounded-3xl bg-cream p-8">
+          <Logo className="h-11 mb-6" />
+          <p className="text-xs uppercase tracking-wide text-neutral-500 mb-1">
+            School staff
+          </p>
+          <h1 className="font-display text-3xl mb-2">Staff sign-in</h1>
+          <p className="text-sm text-neutral-600 mb-8">
+            Sign in with your school Google account. Staff access is granted to
+            approved addresses only.
+          </p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="text-sm font-medium">Staff email</label>
-            <input
-              required
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-line bg-white/80 px-4 py-2.5 outline-none focus:ring-2 focus:ring-clay"
-            />
-          </div>
-          <div>
-            <div className="flex items-baseline justify-between">
-              <label className="text-sm font-medium">Password</label>
-              <Link
-                href="/forgot-password?next=%2Fadmin%2Flogin"
-                className="text-xs text-clay font-medium hover:underline"
-              >
-                Forgot password?
-              </Link>
+          {denied && (
+            <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <p className="text-sm text-amber-800">
+                That account doesn&apos;t have staff access. Students should use
+                the student door.
+              </p>
             </div>
-            <input
-              required
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-line bg-white/80 px-4 py-2.5 outline-none focus:ring-2 focus:ring-clay"
-            />
-          </div>
-
-          {params.get("reset") === "1" && !error && (
-            <p className="text-sm text-green-700">
-              Password updated. Log in with your new password.
-            </p>
           )}
-          {error && <p className="text-sm text-red-600">{error}</p>}
 
-          <button
-            disabled={loading}
-            className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-inkDeep transition disabled:opacity-60"
-          >
-            {loading ? "Logging in…" : "Log in"}
-          </button>
-        </form>
+          {authError && (
+            <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+              <p className="text-sm text-red-700">{authError}</p>
+            </div>
+          )}
 
-        <p className="text-sm text-neutral-600 mt-6">
-          New staff member?{" "}
-          <Link href="/admin/signup" className="text-clay font-medium">
-            Create your staff account
-          </Link>
-        </p>
-        <p className="text-xs text-neutral-400 mt-4">
-          Students: this is not your login.{" "}
-          <Link href="/login" className="underline hover:text-ink">
-            Go to Student Login
+          <GoogleButton next="/admin/dashboard" label="Log in with Google" />
+
+          <p className="text-xs text-neutral-500 mt-6">
+            Only @{ALLOWED_EMAIL_DOMAIN} accounts can sign in, and only the
+            addresses your school has approved get staff access. Everyone else
+            lands on their own student portfolio.
+          </p>
+        </div>
+
+        <p className="text-sm text-white/70 mt-6 text-center">
+          Are you a student?{" "}
+          <Link href="/login" className="text-white font-medium underline">
+            Student login
           </Link>
         </p>
       </div>

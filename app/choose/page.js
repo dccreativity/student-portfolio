@@ -28,7 +28,7 @@ export default function ChoosePage() {
               and edit only your own portfolio.
             </p>
             <span className="inline-block mt-5 text-sm font-medium text-clay group-hover:translate-x-1 transition-transform">
-              Continue →
+              Continue with Google →
             </span>
           </Link>
 
@@ -46,7 +46,7 @@ export default function ChoosePage() {
               approved in advance — students cannot get in this way.
             </p>
             <span className="inline-block mt-5 text-sm font-medium text-clayLight group-hover:translate-x-1 transition-transform">
-              Continue →
+              Continue with Google →
             </span>
           </Link>
         </div>

@@ -126,6 +126,11 @@ export default function DashboardOverview() {
     (sectionsData.non_academic_awards?.entries || []).length;
   const projectsCount = (sectionsData.projects?.entries || []).length;
 
+  // Signing in with Google asks for nothing beyond the account, so the
+  // grade and UID that the old sign-up form collected have to be asked for
+  // once, here, the first time someone arrives.
+  const needsProfile = !profile?.grade || !profile?.uid;
+
   if (loading) {
     return <div className="p-10 text-neutral-500">Loading your portfolio…</div>;
   }
@@ -145,6 +150,56 @@ export default function DashboardOverview() {
           </h1>
         </div>
       </PhotoBackdrop>
+
+      {needsProfile && (
+        <section className="mb-6 rounded-3xl border border-clay/30 bg-clay/5 p-6">
+          <h2 className="font-display text-xl mb-1">Two things before you start</h2>
+          <p className="text-sm text-neutral-600 mb-4">
+            Your school needs these to find your portfolio. Set them once and
+            they stay set — you can change them below at any time.
+          </p>
+          <div className="flex flex-wrap items-end gap-4">
+            <div>
+              <label className="block text-xs text-neutral-500 mb-1">
+                Your grade
+              </label>
+              <select
+                value={profile?.grade ?? ""}
+                onChange={(e) => saveGrade(e.target.value)}
+                disabled={gradeSaving}
+                className="rounded-xl border border-line bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-clay disabled:opacity-60"
+              >
+                <option value="" disabled>
+                  Select
+                </option>
+                {GRADE_OPTIONS.map((g) => (
+                  <option key={g} value={g}>
+                    Grade {g}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-neutral-500 mb-1">
+                Your {UID_LENGTH}-digit UID
+              </label>
+              <input
+                inputMode="numeric"
+                maxLength={UID_LENGTH}
+                value={uid}
+                onChange={(e) => {
+                  setUid(e.target.value.replace(/\D/g, "").slice(0, UID_LENGTH));
+                  setUidStatus("");
+                }}
+                onBlur={saveUid}
+                placeholder="0000"
+                className="w-28 rounded-xl border border-line bg-white px-3 py-2 text-sm tracking-widest text-center outline-none focus:ring-2 focus:ring-clay"
+              />
+            </div>
+            {uidStatus && <p className="text-sm text-neutral-600 pb-2">{uidStatus}</p>}
+          </div>
+        </section>
+      )}
 
       <div className="grid md:grid-cols-3 gap-6">
         <section className="md:col-span-2 bg-white/70 backdrop-blur border border-line rounded-3xl p-6">

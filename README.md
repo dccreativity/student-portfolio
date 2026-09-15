@@ -7,6 +7,56 @@ photo/video galleries, and an admin panel. Built to be deployed with
 
 ## Latest update — read this first
 
+### Google is now the only way in
+
+There are no passwords, no sign-up form, no confirmation email and no
+reset link. Both doors show one button: **Log in with Google**, with
+Google's own mark on it. Everyone already has a school Google account,
+and signing in with it proves the address belongs to them — which is the
+only thing the password was ever standing in for.
+
+Signing in for the first time creates the portfolio automatically. Staff
+are recognised from the allowlist, so it no longer matters which door a
+teacher uses.
+
+**Three things to set up, once.**
+
+**1. Google Cloud** (console.cloud.google.com)
+
+- Create a project, or pick an existing one
+- **APIs & Services → OAuth consent screen** → choose **Internal**. This
+  is the setting worth getting right: Internal restricts sign-in to your
+  own Workspace and skips Google's verification review entirely.
+- **Credentials → Create Credentials → OAuth client ID → Web application**
+- Under **Authorised redirect URIs** add exactly:
+  `https://hjjpmfilunynjhulabet.supabase.co/auth/v1/callback`
+- Copy the **Client ID** and **Client secret**
+
+**2. Supabase → Authentication → Sign In / Providers**
+
+- **Google** → enable → paste the Client ID and secret → Save
+- **Email** → **disable** it. Leaving it on means passwords still work
+  through the API even though the site no longer offers them.
+
+**3. Supabase → Authentication → URL Configuration**
+
+Add to **Redirect URLs**:
+
+```
+https://YOUR-SITE.vercel.app/auth/callback
+```
+
+**Grade and UID.** The sign-up form used to collect these and no longer
+exists, so the dashboard asks for them once, the first time a student
+arrives, and they can change them there afterwards.
+
+**The domain restriction is unchanged.** `supabase/auth-hook.sql` refuses
+any address outside @adaniinternational.edu.in, and it runs whatever the
+provider, so a personal Gmail cannot get an account even though Google is
+perfectly happy to sign it in. The button also passes `hd` so Google only
+offers school accounts in the chooser — that part is convenience, not the
+gate.
+
 ### Turning email confirmation back on
 
 Supabase's built-in email service works — it is what delivered your and

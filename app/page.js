@@ -35,7 +35,7 @@ export default async function Home() {
             href="/choose"
             className="rounded-full border border-ink/10 bg-white/60 backdrop-blur px-5 py-2 text-sm font-medium hover:bg-white hover:border-ink/20 transition"
           >
-            Log in / Sign up
+            Log in with Google
           </Link>
         </header>
 
