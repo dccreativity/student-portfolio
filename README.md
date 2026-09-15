@@ -7,16 +7,56 @@ photo/video galleries, and an admin panel. Built to be deployed with
 
 ## Latest update — read this first
 
-### Email is no longer required to run the site
+### Turning email confirmation back on
 
-The school's mail server has refused every send so far, so the app no
-longer depends on it for anything essential.
+Supabase's built-in email service works — it is what delivered your and
+Shaurya's confirmations — but it **only sends its default templates**,
+and those carry a **link**, not a 6-digit code. The template editor is
+locked unless custom SMTP is configured, so with the built-in service
+there is no way to put `{{ .Token }}` into the reset email.
 
-**Sign-up:** turn **Confirm email** off (Supabase → Authentication →
-Sign In / Providers → Email). Students then sign up and go straight to
-their dashboard — no code, no waiting. Only `@adaniinternational.edu.in`
-addresses can register either way; that is enforced in the database, not
-by the email.
+The app now accepts **both**. Whichever Supabase sends, it works:
+
+- **a link** — the student clicks it and lands back on the site with the
+  password box ready
+- **a code** — the student types the 6 digits, as before
+
+So there is nothing to configure in the templates. Do this instead:
+
+1. Project Settings → **Authentication → SMTP Settings** → turn **Enable
+   Custom SMTP** off
+2. Authentication → **Sign In / Providers → Email** → turn **Confirm
+   email** on
+3. Authentication → **URL Configuration** → set **Site URL** to your
+   Vercel address, and add these two under **Redirect URLs**:
+   - `https://YOUR-SITE.vercel.app/verify`
+   - `https://YOUR-SITE.vercel.app/forgot-password`
+
+Step 3 is not optional. The links in those emails come back to those two
+addresses, and Supabase refuses to redirect anywhere it has not been told
+about — silently, which is exactly the failure that is maddening to
+diagnose.
+
+**One limitation to know:** a reset link only works in the browser it was
+requested from. A student who asks on a laptop and opens the email on
+their phone will be told so plainly and asked to try from the laptop —
+or you set their password from the Account panel below. Codes do not have
+this limitation, which is the one reason to prefer custom SMTP once you
+have a mail service that works.
+
+**The built-in sender is rate-limited** to a handful of emails per hour
+for the whole project (Authentication → Rate Limits shows the number). It
+is fine for a few sign-ups a day and will fail the day a whole class
+registers at once.
+
+### Email is not required to run the site
+
+Whatever happens to the mail server, the site keeps working.
+
+**Sign-up:** turning **Confirm email** off lets students sign up and go
+straight to their dashboard — no code, no waiting. Only
+`@adaniinternational.edu.in` addresses can register either way; that is
+enforced in the database, not by the email.
 
 **Forgotten passwords:** open the student in the admin area. As super
 admin you now get an **Account** panel: type a new password (or press
@@ -41,55 +81,17 @@ breaks.
 The panel checks the caller is the super admin before doing anything, so
 a student or an ordinary admin who found the address gets refused.
 
-### If you still want email working
+### What happened with Gmail, for the record
 
-### Why nobody can sign up right now — and how to fix it in 5 minutes
+Custom SMTP was pointed at Gmail and every send was refused with
+`535 BadCredentials`, because the app password belonged to a different
+Google account from the one in the Username field. Many school Google
+Workspace domains also disable app passwords entirely, which would make
+that route a dead end whatever else was tried.
 
-This is the one thing on the list that **only you can do**, and until it
-is done no student or staff member can create an account or reset a
-password.
-
-Your site is not dormant. Your Supabase project is up and healthy. The
-Supabase auth log gives the exact reason, on every single attempt:
-
-```
-535 "5.7.8 Username and Password not accepted.
-     https://support.google.com/mail/?p=BadCredentials" - gsmtp
-```
-
-Google is refusing the password saved in Supabase's SMTP settings. That
-happens when a **normal Google password** is used there. Google does not
-accept those for SMTP any more — it needs an **App Password**, which is a
-separate 16-character code you generate once.
-
-**Fix it:**
-
-1. Sign in to the Google account whose address is in Supabase's SMTP
-   settings (the "sender" address).
-2. Go to **myaccount.google.com** → **Security**.
-3. Turn on **2-Step Verification** if it is not already on. (App
-   passwords do not exist without it.)
-4. Search that same Security page for **App passwords** → create one →
-   name it `folio` → Google shows a 16-character code.
-5. Supabase → **Project Settings → Authentication → SMTP Settings** →
-   paste that code into **Password** (remove the spaces) → **Save**.
-
-Nothing else changes. Host stays `smtp.gmail.com`, port `465`, username
-stays the same address.
-
-Then test: open your site, go to **Forgot password?**, enter your own
-address. If the code arrives, sign-ups and resets are both working again.
-
-**If you would rather students never wait on email at all:** Supabase →
-**Authentication → Sign In / Providers → Email** → turn **Confirm email**
-off. Sign-up then works even with the mail server broken — the app now
-notices there is no code to wait for and takes the student straight to
-their dashboard. Only school addresses can register either way, because
-that rule is enforced in the database, not by the email.
-
-Meanwhile the app no longer shows students a raw server error. When mail
-cannot be sent they are told plainly that it is a school-side settings
-problem, not their details, and to contact you.
+The built-in service was working before that change — Shaurya's address
+confirmed 23 seconds after he signed up on 7 September. Turning custom
+SMTP off restores it.
 
 ### Run this SQL — actually, you don't have to this time
 

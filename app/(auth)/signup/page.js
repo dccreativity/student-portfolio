@@ -54,6 +54,15 @@ export default function SignupPage() {
       email,
       password,
       options: {
+        // Where the link in the confirmation email comes back to.
+        // Supabase's built-in email service can only send its default
+        // template, which carries a link rather than a code, so the link
+        // has to land somewhere that can finish the job. This exact
+        // address must be listed under Authentication -> URL Configuration
+        // -> Redirect URLs in Supabase, or the link is refused.
+        emailRedirectTo: `${window.location.origin}/verify?email=${encodeURIComponent(
+          email
+        )}&next=%2Fdashboard`,
         data: { full_name: fullName, grade, uid: uid.trim() },
       },
     });

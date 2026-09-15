@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabaseClient";
 import { isStaffRole } from "@/lib/constants";
@@ -22,24 +22,14 @@ function VerifyForm() {
   const [info, setInfo] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleVerify(e) {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    const { error: verifyError } = await supabase.auth.verifyOtp({
-      email,
-      token: code,
-      type: "signup",
-    });
-
-    setLoading(false);
-
-    if (verifyError) {
-      setError(verifyError.message);
-      return;
-    }
-
+  // What happens once the address is confirmed, however it was confirmed —
+  // by typing the code below, or by clicking the link in the email.
+  //
+  // Supabase's built-in email service can only send its default template,
+  // which carries a link rather than a {{ .Token }} code, so this page has
+  // to handle both. The link brings the student back here with a session
+  // already established; there is nothing left to verify at that point.
+  const finish = useCallback(async () => {
     if (next === "/admin/login") {
       // Whitelisted staff are auto-approved by the database trigger the
       // moment they verify. Anyone else who signed up via /admin/signup
@@ -64,6 +54,48 @@ function VerifyForm() {
       }
     }
     window.location.assign(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [next]);
+
+  // Arriving from the link in the email: the session is already there.
+  useEffect(() => {
+    const hash = typeof window === "undefined" ? "" : window.location.hash;
+    if (!params.has("code") && !hash.includes("access_token")) return;
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_IN") finish();
+    });
+
+    // The exchange can complete before the listener is attached.
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) finish();
+    });
+
+    return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finish]);
+
+  async function handleVerify(e) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      email,
+      token: code,
+      type: "signup",
+    });
+
+    setLoading(false);
+
+    if (verifyError) {
+      setError(verifyError.message);
+      return;
+    }
+
+    await finish();
   }
 
   async function handleResend() {
