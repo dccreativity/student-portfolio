@@ -6,6 +6,7 @@ import { getSectionMeta } from "@/lib/sectionSchema";
 import { attachmentsOf, withAttachments } from "@/lib/uploads";
 import FileAttachments from "@/components/FileAttachments";
 import EducationEditor from "@/components/EducationEditor";
+import BulletListInput from "@/components/BulletListInput";
 
 function emptyEntry(fields) {
   const e = {};
@@ -14,6 +15,18 @@ function emptyEntry(fields) {
 }
 
 function FieldInput({ field, value, onChange, readOnly }) {
+  // Statement fields are a list of points, whether being edited or read.
+  if (field.bullets) {
+    return (
+      <BulletListInput
+        value={value}
+        onChange={onChange}
+        placeholder={field.label}
+        readOnly={readOnly}
+      />
+    );
+  }
+
   if (readOnly) {
     return (
       <div className="w-full rounded-xl border border-line bg-cream/40 px-3 py-2 text-sm min-h-[38px] text-neutral-700 whitespace-pre-wrap">
@@ -21,17 +34,60 @@ function FieldInput({ field, value, onChange, readOnly }) {
       </div>
     );
   }
-  if (field.long) {
+
+  if (field.options) {
     return (
-      <textarea
+      <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={field.label}
-        rows={4}
         className="w-full rounded-xl border border-line bg-white/80 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-clay"
-      />
+      >
+        <option value="">Select {field.label.toLowerCase()}</option>
+        {field.options.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
+      </select>
     );
   }
+
+  if (field.long) {
+    const limit = field.maxLength;
+    const used = (value || "").length;
+    // The count is derived from the value on every render, so it moves as
+    // the student types rather than on blur.
+    const nearLimit = limit && used > limit * 0.9;
+    return (
+      <div>
+        <textarea
+          value={value}
+          onChange={(e) =>
+            onChange(limit ? e.target.value.slice(0, limit) : e.target.value)
+          }
+          placeholder={field.label}
+          rows={limit ? 8 : 4}
+          maxLength={limit}
+          className="w-full rounded-xl border border-line bg-white/80 px-3 py-2.5 text-sm leading-relaxed outline-none focus:ring-2 focus:ring-clay"
+        />
+        {limit && (
+          <p
+            className={`mt-1 text-xs text-right ${
+              used >= limit
+                ? "text-red-600 font-medium"
+                : nearLimit
+                ? "text-clay"
+                : "text-neutral-400"
+            }`}
+          >
+            {used} / {limit} characters
+            {used >= limit && " — limit reached"}
+          </p>
+        )}
+      </div>
+    );
+  }
+
   return (
     <input
       value={value}
@@ -76,7 +132,7 @@ function RepeatableTable({ fields, entries, onChange, readOnly, userId, pathPref
           )}
           <div className="grid sm:grid-cols-2 gap-3 pr-6">
             {fields.map((f) => (
-              <div key={f.key} className={f.long ? "sm:col-span-2" : ""}>
+              <div key={f.key} className={f.long || f.bullets ? "sm:col-span-2" : ""}>
                 <label className="text-xs text-neutral-500">{f.label}</label>
                 <FieldInput
                   field={f}
@@ -112,7 +168,7 @@ function RepeatableTable({ fields, entries, onChange, readOnly, userId, pathPref
 // `readOnly` is used by the admin's per-student view: admins can see every
 // field but cannot save changes, per the school's requirement that admins
 // only observe what students have added, never edit or delete it.
-export default function SectionEditor({ userId, sectionKey, studentGrade, readOnly = false }) {
+export default function SectionEditor({ userId, sectionKey, readOnly = false }) {
   const supabase = createClient();
   const meta = getSectionMeta(sectionKey);
 
@@ -292,7 +348,7 @@ export default function SectionEditor({ userId, sectionKey, studentGrade, readOn
       {meta.type === "single" && (
         <div className="grid sm:grid-cols-2 gap-4">
           {meta.fields.map((f) => (
-            <div key={f.key} className={f.long ? "sm:col-span-2" : ""}>
+            <div key={f.key} className={f.long || f.bullets ? "sm:col-span-2" : ""}>
               <label className="text-xs text-neutral-500">{f.label}</label>
               <FieldInput
                 field={f}
@@ -341,7 +397,6 @@ export default function SectionEditor({ userId, sectionKey, studentGrade, readOn
             <EducationEditor
               records={content.records || []}
               onChange={(records) => edit((prev) => ({ ...prev, records }))}
-              studentGrade={studentGrade}
               readOnly={readOnly}
               userId={userId}
             />
@@ -404,7 +459,7 @@ export default function SectionEditor({ userId, sectionKey, studentGrade, readOn
             type="button"
             onClick={handleSave}
             disabled={saving || !dirty}
-            className="rounded-xl bg-ink text-white px-5 py-2.5 text-sm font-medium hover:bg-black transition disabled:opacity-40 disabled:cursor-not-allowed"
+            className="rounded-xl bg-ink text-white px-5 py-2.5 text-sm font-medium hover:bg-inkDeep transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {saving ? "Saving…" : dirty ? "Save changes" : "Saved"}
           </button>

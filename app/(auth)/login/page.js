@@ -63,7 +63,7 @@ function LoginForm() {
     <main className="min-h-screen grid lg:grid-cols-2 bg-cream">
       <PhotoBackdrop
         src={UNSPLASH_IMAGES.authHero}
-        gradient="from-clay via-[#B4643C] to-ink"
+        gradient="from-clay via-[#532B88] to-ink"
         overlay="bg-ink/45"
         className="hidden lg:block"
       >
@@ -118,7 +118,7 @@ function LoginForm() {
 
             <button
               disabled={loading}
-              className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-black transition disabled:opacity-60"
+              className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-inkDeep transition disabled:opacity-60"
             >
               {loading ? "Logging in…" : "Log in"}
             </button>

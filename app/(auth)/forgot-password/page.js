@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabaseClient";
 import { ALLOWED_EMAIL_DOMAIN, isAllowedSchoolEmail, UNSPLASH_IMAGES } from "@/lib/constants";
+import { friendlyAuthError } from "@/lib/authErrors";
 import Logo from "@/components/Logo";
 import PhotoBackdrop from "@/components/PhotoBackdrop";
 
@@ -47,11 +48,7 @@ function ForgotPasswordForm() {
     setLoading(false);
 
     if (sendError) {
-      setError(
-        /rate|limit|too many/i.test(sendError.message)
-          ? "Too many emails have been sent from this site in the last hour. Wait a little and try again."
-          : sendError.message
-      );
+      setError(friendlyAuthError(sendError, "reset code"));
       return;
     }
 
@@ -107,7 +104,7 @@ function ForgotPasswordForm() {
     <main className="min-h-screen grid lg:grid-cols-2 bg-cream">
       <PhotoBackdrop
         src={UNSPLASH_IMAGES.authHero}
-        gradient="from-clay via-[#B4643C] to-ink"
+        gradient="from-clay via-[#532B88] to-ink"
         overlay="bg-ink/45"
         className="hidden lg:block"
       >
@@ -147,7 +144,7 @@ function ForgotPasswordForm() {
 
                 <button
                   disabled={loading}
-                  className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-black transition disabled:opacity-60"
+                  className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-inkDeep transition disabled:opacity-60"
                 >
                   {loading ? "Sending…" : "Send me a code"}
                 </button>
@@ -192,7 +189,7 @@ function ForgotPasswordForm() {
 
                 <button
                   disabled={loading}
-                  className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-black transition disabled:opacity-60"
+                  className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-inkDeep transition disabled:opacity-60"
                 >
                   {loading ? "Saving…" : "Save new password"}
                 </button>

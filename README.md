@@ -5,30 +5,170 @@ with school-email-only sign-up, OTP verification, live real-time updates,
 photo/video galleries, and an admin panel. Built to be deployed with
 **zero local installs** — everything below happens in a browser.
 
-## Latest update — read this first if your site is already live
+## Latest update — read this first
 
-Two things were genuinely broken and are now fixed, plus a set of
-changes you asked for. **One new SQL file has to be run**, everything
-else is code.
+### Why nobody can sign up right now — and how to fix it in 5 minutes
 
-### Run this SQL (Supabase → SQL Editor → New query → paste → Run)
+This is the one thing on the list that **only you can do**, and until it
+is done no student or staff member can create an account or reset a
+password.
 
-**None of this is applied to your Supabase project yet.** These are files
-in the repo; Vercel deploys the app code automatically, but nothing can
-reach your database except you, pasting SQL into the SQL Editor.
+Your site is not dormant. Your Supabase project is up and healthy. The
+Supabase auth log gives the exact reason, on every single attempt:
 
-Not sure what you have already run? Paste `supabase/check-setup.sql` and
-hit Run. It changes nothing and returns a checklist of what is in place
-and which file to run for anything that is not.
+```
+535 "5.7.8 Username and Password not accepted.
+     https://support.google.com/mail/?p=BadCredentials" - gsmtp
+```
 
-Two files, in this order, after the migrations you have already run
-(`migration-grade.sql`, `migration-admin-allowlist.sql`). Both are safe
-to re-run:
+Google is refusing the password saved in Supabase's SMTP settings. That
+happens when a **normal Google password** is used there. Google does not
+accept those for SMTP any more — it needs an **App Password**, which is a
+separate 16-character code you generate once.
 
-1. `supabase/migration-readonly-admin.sql`
-2. `supabase/migration-private-files.sql`
+**Fix it:**
 
-`supabase/media.sql` is now also safe to re-run, if you ever need to.
+1. Sign in to the Google account whose address is in Supabase's SMTP
+   settings (the "sender" address).
+2. Go to **myaccount.google.com** → **Security**.
+3. Turn on **2-Step Verification** if it is not already on. (App
+   passwords do not exist without it.)
+4. Search that same Security page for **App passwords** → create one →
+   name it `folio` → Google shows a 16-character code.
+5. Supabase → **Project Settings → Authentication → SMTP Settings** →
+   paste that code into **Password** (remove the spaces) → **Save**.
+
+Nothing else changes. Host stays `smtp.gmail.com`, port `465`, username
+stays the same address.
+
+Then test: open your site, go to **Forgot password?**, enter your own
+address. If the code arrives, sign-ups and resets are both working again.
+
+**If you would rather students never wait on email at all:** Supabase →
+**Authentication → Sign In / Providers → Email** → turn **Confirm email**
+off. Sign-up then works even with the mail server broken — the app now
+notices there is no code to wait for and takes the student straight to
+their dashboard. Only school addresses can register either way, because
+that rule is enforced in the database, not by the email.
+
+Meanwhile the app no longer shows students a raw server error. When mail
+cannot be sent they are told plainly that it is a school-side settings
+problem, not their details, and to contact you.
+
+### Run this SQL — actually, you don't have to this time
+
+`supabase/migration-superadmin-uid-realtime.sql` is **already applied to
+your live project**. It is in the repo so the database can be rebuilt
+from that folder alone. Running it again changes nothing.
+
+It did four things:
+
+- Made you (`deepak.chaudhary@adaniinternational.edu.in`) the **super
+  admin**.
+- Added the **UID** column.
+- Made **deleting a photo** show up live.
+- Fixed the allowlist matching bug that stopped your second admin address
+  from registering as staff.
+
+Still worth running, if you have not already: `supabase/add-staff.sql`,
+with your staff addresses in STEP 2.
+
+### Super admin
+
+Ordinary admins are unchanged: they see everything and can change
+nothing. Your account can now also **correct and delete** any student's
+data — the editors open as editable for you and read-only for everyone
+else.
+
+This is enforced in the database, not just hidden in the page: an
+ordinary admin who tampered with the site in their browser would still
+have every write refused. You cannot promote anyone from inside the app,
+on purpose — that stays a deliberate SQL step, so nobody can talk their
+way into it.
+
+### UID
+
+Students now enter a **4-digit UID** when they sign up — not 3, not 5,
+digits only. Students who signed up before this can add theirs from the
+box next to their grade on the dashboard. UIDs show up in the admin list
+and on each student's page.
+
+UIDs are **not** forced to be unique, deliberately: if two students
+genuinely shared one, a unique rule would block the second student's
+sign-up with a database error. Say the word and it is a one-line change.
+
+### Completion at a glance
+
+- **Students** see a green tick against every section they have saved,
+  and a yellow dash against the ones still to do.
+- **Admins** pick a single grade and get a table of that grade's
+  students — one row each, sorted by first name, one column per section,
+  ticked where the student has saved it. It updates live as students
+  work.
+
+One rule decides the tick in both places (`lib/completion.js`), so they
+can never disagree.
+
+### Writing in bullet points
+
+Every field where a student writes statements — responsibilities,
+outcomes, findings, duties, impact, takeaways — is now a **list of
+points** instead of a single line. Enter starts the next point. Each
+point becomes its own bullet on the resume.
+
+**Objective** is different on purpose: a big box with a live
+**500-character count** that moves as they type and stops at 500.
+
+### Education, rebuilt around what students actually took
+
+A student's grade no longer decides what they may record — it is only
+how admins group them now.
+
+Everyone can add **any** year, as many times as they need:
+
+- **Grade 9 and 10** — IGCSE (pre-selected) or **Other**
+- **Grade 11 and 12** — **Cambridge AS & A Level** or **IB DP**, or
+  **Other**
+
+**Other** asks which programme it was (ICSE, CBSE, MYP, a state board)
+and leaves the grade as free text with no list and no range, so marks go
+in exactly as the board awarded them. IB DP keeps SL/HL and 1–7;
+Cambridge keeps A*–U. Subject is always typed, never a dropdown. The
+columns now line up with their headings whichever programme is chosen.
+
+### Skills
+
+The Skill field is now a dropdown of the twelve you listed. The second
+field became **evidence** — how the student demonstrated it — and takes
+bullet points. On the resume, skills without evidence are collected into
+one `Skills:` line; a skill with evidence gets its own block.
+
+### The resume PDF, fixed
+
+Both problems in the PDF you sent are fixed, and verified against that
+exact data:
+
+- **Text ran off the page.** A long address was being centred by
+  measuring the whole line and starting it half its width left of centre
+  — which for an address wider than the page is a negative position, so
+  it bled off both edges. Addresses now wrap first and each line is
+  centred. Over-long single words break instead of overflowing too.
+- **A section heading was stranded at the foot of a page**
+  (`SOCIAL SERVICE ACTIVITIES` was the last thing on page 1, its content
+  on page 2). A heading now moves to the next page together with its
+  first entry.
+
+### The tab
+
+Every page shows the school crest as the browser tab icon and the title
+**ADIS Student Portfolio**.
+
+### The new colours
+
+The whole site now uses your palette — `#F4EFFA`, `#C8B1E4`, `#9B72CF`,
+`#532B88`, `#2F184B` and white. Nothing on the site is black any more;
+the darkest purple stands in for it. Changing any of these in
+`lib/tailwindCdn.js` restyles every screen at once.
 
 ### Nothing is reachable by URL without an account
 

@@ -3,6 +3,7 @@
 import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabaseClient";
+import { friendlyAuthError } from "@/lib/authErrors";
 import Logo from "@/components/Logo";
 
 function VerifyForm() {
@@ -72,7 +73,7 @@ function VerifyForm() {
       email,
     });
     if (resendError) {
-      setError(resendError.message);
+      setError(friendlyAuthError(resendError, "verification code"));
     } else {
       setInfo("A new code has been sent to your email.");
     }
@@ -103,7 +104,7 @@ function VerifyForm() {
 
           <button
             disabled={loading}
-            className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-black transition disabled:opacity-60"
+            className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-inkDeep transition disabled:opacity-60"
           >
             {loading ? "Verifying…" : "Verify email"}
           </button>

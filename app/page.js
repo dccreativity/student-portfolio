@@ -77,7 +77,7 @@ export default async function Home() {
 
               <Link
                 href="/admin/login"
-                className="group bg-ink text-white rounded-3xl p-7 hover:bg-black hover:-translate-y-0.5 transition-all shadow-sm"
+                className="group bg-ink text-white rounded-3xl p-7 hover:bg-inkDeep hover:-translate-y-0.5 transition-all shadow-sm"
               >
                 <span className="inline-grid place-items-center w-11 h-11 rounded-2xl bg-white/10 text-clayLight text-lg mb-4">
                   🏫

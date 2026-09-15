@@ -3,28 +3,10 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabaseClient";
 import { SECTION_SCHEMA } from "@/lib/sectionSchema";
-import { GRADE_OPTIONS, UNSPLASH_IMAGES } from "@/lib/constants";
+import { GRADE_OPTIONS, UID_LENGTH, UNSPLASH_IMAGES, isValidUid } from "@/lib/constants";
+import { isSectionFilled } from "@/lib/completion";
 import PhotoBackdrop from "@/components/PhotoBackdrop";
-
-function isSectionFilled(meta, content) {
-  if (!content) return false;
-  if (meta.type === "single") {
-    return Object.values(content).some((v) => String(v || "").trim().length > 0);
-  }
-  if (meta.type === "repeatable") {
-    return (content.entries || []).length > 0;
-  }
-  if (meta.type === "mixed") {
-    const hasBasic = meta.fields.some((f) => String(content[f.key] || "").trim().length > 0);
-    const hasGroup = meta.repeatableGroups.some((g) => (content[g.key] || []).length > 0);
-    return hasBasic || hasGroup;
-  }
-  if (meta.type === "education") {
-    const hasBasic = meta.fields.some((f) => String(content[f.key] || "").trim().length > 0);
-    return hasBasic || (content.records || []).length > 0;
-  }
-  return false;
-}
+import StatusTick from "@/components/StatusTick";
 
 export default function DashboardOverview() {
   const supabase = createClient();
@@ -33,6 +15,8 @@ export default function DashboardOverview() {
   const [mediaCounts, setMediaCounts] = useState({ picture_gallery: 0, video_gallery: 0 });
   const [loading, setLoading] = useState(true);
   const [gradeSaving, setGradeSaving] = useState(false);
+  const [uid, setUid] = useState("");
+  const [uidStatus, setUidStatus] = useState("");
 
   // Accounts created before grades were collected have none, and the
   // admin list groups by grade — so students need a way to set it here.
@@ -42,6 +26,25 @@ export default function DashboardOverview() {
     const { error } = await supabase.from("profiles").update({ grade }).eq("id", profile.id);
     setGradeSaving(false);
     if (!error) setProfile((p) => ({ ...p, grade }));
+  }
+
+  // Same reason as the grade above: accounts created before UIDs were
+  // collected have none, and the admin list identifies students by it.
+  async function saveUid() {
+    const next = uid.trim();
+    if (!profile || next === (profile.uid || "")) return;
+    if (!isValidUid(next)) {
+      setUidStatus(`Needs to be exactly ${UID_LENGTH} digits.`);
+      return;
+    }
+    const { error } = await supabase.from("profiles").update({ uid: next }).eq("id", profile.id);
+    if (error) {
+      setUidStatus("Couldn't save that.");
+      return;
+    }
+    setProfile((p) => ({ ...p, uid: next }));
+    setUidStatus("Saved");
+    setTimeout(() => setUidStatus(""), 2000);
   }
 
   useEffect(() => {
@@ -59,6 +62,7 @@ export default function DashboardOverview() {
         .eq("id", user.id)
         .single();
       setProfile(profileRow);
+      setUid(profileRow?.uid || "");
 
       const { data: rows } = await supabase
         .from("portfolio_data")
@@ -109,7 +113,7 @@ export default function DashboardOverview() {
 
   const total = SECTION_SCHEMA.length;
   const done = SECTION_SCHEMA.filter((s) =>
-    s.type === "media" ? mediaCounts[s.key] > 0 : isSectionFilled(s, sectionsData[s.key])
+    isSectionFilled(s, sectionsData[s.key], mediaCounts[s.key])
   ).length;
   const percent = total ? Math.round((done / total) * 100) : 0;
 
@@ -130,7 +134,7 @@ export default function DashboardOverview() {
     <main className="p-6 md:p-10 max-w-6xl">
       <PhotoBackdrop
         src={UNSPLASH_IMAGES.dashboardHero}
-        gradient="from-clay via-[#B4643C] to-ink"
+        gradient="from-clay via-[#532B88] to-ink"
         overlay="bg-gradient-to-r from-ink/75 via-ink/35 to-transparent"
         className="rounded-3xl mb-8 h-40 md:h-48"
       >
@@ -151,7 +155,26 @@ export default function DashboardOverview() {
             <div>
               <h2 className="font-display text-2xl">{profile?.full_name}</h2>
               <p className="text-sm text-neutral-500">{profile?.email}</p>
-              <div className="flex items-center gap-2 mt-1.5">
+              <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                <span className="inline-flex items-center gap-1.5 text-xs font-medium bg-sand text-ink rounded-full pl-3 pr-1.5 py-1 border border-line">
+                  UID
+                  <input
+                    inputMode="numeric"
+                    maxLength={UID_LENGTH}
+                    value={uid}
+                    onChange={(e) => {
+                      setUid(e.target.value.replace(/\D/g, "").slice(0, UID_LENGTH));
+                      setUidStatus("");
+                    }}
+                    onBlur={saveUid}
+                    placeholder="0000"
+                    aria-label={`Your ${UID_LENGTH}-digit school UID`}
+                    className="w-14 bg-white/70 rounded-full px-2 py-0.5 tracking-widest text-center outline-none focus:ring-2 focus:ring-clay"
+                  />
+                </span>
+                {uidStatus && (
+                  <span className="text-xs text-neutral-500">{uidStatus}</span>
+                )}
                 <select
                   value={profile?.grade ?? ""}
                   onChange={(e) => saveGrade(e.target.value)}
@@ -204,7 +227,7 @@ export default function DashboardOverview() {
           <h3 className="font-medium mb-4">Portfolio Completion</h3>
           <div
             className="w-28 h-28 rounded-full mx-auto grid place-items-center"
-            style={{ background: `conic-gradient(#E07A45 ${percent * 3.6}deg, #EDE3D3 0deg)` }}
+            style={{ background: `conic-gradient(#532B88 ${percent * 3.6}deg, #E9DEF6 0deg)` }}
           >
             <div className="w-20 h-20 rounded-full bg-white grid place-items-center">
               <span className="font-display text-xl">{percent}%</span>
@@ -217,20 +240,33 @@ export default function DashboardOverview() {
       </div>
 
       <section className="mt-8">
-        <h3 className="font-medium mb-4">Sections</h3>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <h3 className="font-medium">Sections</h3>
+          <p className="flex items-center gap-4 text-xs text-neutral-500">
+            <span className="flex items-center gap-1.5">
+              <StatusTick done /> Saved
+            </span>
+            <span className="flex items-center gap-1.5">
+              <StatusTick done={false} /> Pending
+            </span>
+          </p>
+        </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {SECTION_SCHEMA.map((s) => {
-            const filled = s.type === "media" ? mediaCounts[s.key] > 0 : isSectionFilled(s, sectionsData[s.key]);
+            const filled = isSectionFilled(s, sectionsData[s.key], mediaCounts[s.key]);
             return (
               <a
                 key={s.key}
                 href={`/dashboard/${s.key}`}
-                className="bg-white/70 border border-line rounded-2xl p-4 hover:border-clay transition"
+                className="bg-white/70 border border-line rounded-2xl p-4 hover:border-clay transition flex items-start gap-3"
               >
-                <p className="font-medium">{s.label}</p>
-                <p className="text-xs text-neutral-500 mt-1">
-                  {filled ? "Completed" : "Not started yet"}
-                </p>
+                <StatusTick done={filled} />
+                <span>
+                  <p className="font-medium leading-tight">{s.label}</p>
+                  <p className="text-xs text-neutral-500 mt-1">
+                    {filled ? "Saved" : "Pending"}
+                  </p>
+                </span>
               </a>
             );
           })}

@@ -115,7 +115,7 @@ function AdminLoginForm() {
 
           <button
             disabled={loading}
-            className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-black transition disabled:opacity-60"
+            className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-inkDeep transition disabled:opacity-60"
           >
             {loading ? "Logging in…" : "Log in"}
           </button>

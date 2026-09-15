@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabaseClient";
 import { ALLOWED_EMAIL_DOMAIN, isAllowedSchoolEmail } from "@/lib/constants";
+import { friendlyAuthError } from "@/lib/authErrors";
 import Logo from "@/components/Logo";
 
 // Deliberately separate from the student /signup page and never linked
@@ -44,12 +45,22 @@ export default function AdminSignupPage() {
     setLoading(false);
 
     if (signUpError) {
-      setError(signUpError.message);
+      setError(friendlyAuthError(signUpError, "verification code"));
       return;
     }
 
     if (data?.user && data.user.identities && data.user.identities.length === 0) {
       setError("An account with this email already exists. Try logging in instead.");
+      return;
+    }
+
+    // With email confirmation switched off in Supabase, sign-up
+    // returns a session immediately and no code is sent — so there is
+    // nothing to verify and the account is ready to use. Sending them
+    // to /verify would strand them waiting for a code that is never
+    // coming.
+    if (data?.session) {
+      window.location.assign("/admin/login");
       return;
     }
 
@@ -116,7 +127,7 @@ export default function AdminSignupPage() {
 
           <button
             disabled={loading}
-            className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-black transition disabled:opacity-60"
+            className="w-full rounded-xl bg-ink text-white py-2.5 font-medium hover:bg-inkDeep transition disabled:opacity-60"
           >
             {loading ? "Creating account…" : "Create staff account"}
           </button>

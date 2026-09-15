@@ -102,7 +102,7 @@ export default function ResumePreview({ profile, sections }) {
 
   return (
     <article
-      className="bg-white border border-line rounded-xl shadow-sm mx-auto text-black font-serif leading-[1.18]"
+      className="bg-white border border-line rounded-xl shadow-sm mx-auto text-plum font-serif leading-[1.18]"
       style={{ maxWidth: "816px", padding: "48px", fontSize: "13.33px" }}
     >
       {/* ---- Letterhead ---- */}

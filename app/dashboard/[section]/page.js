@@ -71,7 +71,7 @@ export default function SectionPage() {
       {meta.type === "media" ? (
         <MediaGallery userId={userId} sectionKey={meta.key} mediaType={meta.mediaType} />
       ) : (
-        <SectionEditor userId={userId} sectionKey={meta.key} studentGrade={grade} />
+        <SectionEditor userId={userId} sectionKey={meta.key} />
       )}
     </main>
   );
