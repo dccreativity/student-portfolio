@@ -54,8 +54,13 @@ export async function middleware(request) {
 
   const path = request.nextUrl.pathname;
   const publicPath = isPublic(path);
+  // /api/admin/* is staff-only too. The route handlers check the caller
+  // themselves — that check is the real gate — but guarding the whole
+  // prefix here means a route added later is staff-only by default rather
+  // than only if someone remembers.
   const adminArea =
-    path.startsWith("/admin") && !PUBLIC_ADMIN_PATHS.some((p) => path === p);
+    (path.startsWith("/admin") || path.startsWith("/api/admin")) &&
+    !PUBLIC_ADMIN_PATHS.some((p) => path === p);
 
   // Not signed in and asking for anything private: send them to the right
   // front door and remember where they were headed.
