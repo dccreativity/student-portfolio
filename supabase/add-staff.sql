@@ -97,8 +97,22 @@ insert into public.admin_allowlist (email)
 select lower(trim(e))
 from unnest(array[
 
-  'you@adaniinternational.edu.in',
-  'counselor@adaniinternational.edu.in'
+  -- Super admin: can also correct and remove student data. Promoted by
+  -- supabase/migration-superadmin-uid-realtime.sql, not by this list.
+  'deepak.chaudhary@adaniinternational.edu.in',
+
+  -- Admins: view-only across every student profile.
+  'dpc@adaniinternational.edu.in',
+  'nikita.gidwani@adaniinternational.edu.in',
+  'hitesh.santani@adaniinternational.edu.in',
+  'chandan.rai@adaniinternational.edu.in',
+  'monalisa.sharma@adaniinternational.edu.in',
+  'deputy.head@adaniinternational.edu.in',
+  'principal@adaniinternational.edu.in',
+
+  -- Added earlier, kept because removing it would take away an access
+  -- someone may still be relying on. Delete the line if it is not wanted.
+  'bhargavi.atodaria@adaniinternational.edu.in'
 
 ]) as e
 on conflict (email) do nothing;
@@ -118,7 +132,9 @@ update public.profiles p
    set role = 'admin', status = 'approved'
   from public.admin_allowlist a
  where lower(trim(p.email)) = lower(trim(a.email))
-   and (p.role is distinct from 'admin' or p.status is distinct from 'approved');
+   -- Only students are promoted. Without this the super admin would be
+   -- demoted to an ordinary admin every time this file is re-run.
+   and p.role = 'student';
 
 
 -- ---------------------------------------------------------
