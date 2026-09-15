@@ -108,11 +108,7 @@ from unnest(array[
   'chandan.rai@adaniinternational.edu.in',
   'monalisa.sharma@adaniinternational.edu.in',
   'deputy.head@adaniinternational.edu.in',
-  'principal@adaniinternational.edu.in',
-
-  -- Added earlier, kept because removing it would take away an access
-  -- someone may still be relying on. Delete the line if it is not wanted.
-  'bhargavi.atodaria@adaniinternational.edu.in'
+  'principal@adaniinternational.edu.in'
 
 ]) as e
 on conflict (email) do nothing;
