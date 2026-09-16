@@ -89,12 +89,17 @@ function FieldInput({ field, value, onChange, readOnly }) {
   }
 
   return (
-    <input
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={field.label}
-      className="w-full rounded-xl border border-line bg-white/80 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-clay"
-    />
+    <div>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={field.label}
+        className="w-full rounded-xl border border-line bg-white/80 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-clay"
+      />
+      {field.hint && (
+        <p className="mt-1 text-[11px] leading-snug text-neutral-500">{field.hint}</p>
+      )}
+    </div>
   );
 }
 
