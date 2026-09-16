@@ -8,6 +8,7 @@ import { SECTION_SCHEMA } from "@/lib/sectionSchema";
 import { getSectionBanner } from "@/lib/constants";
 import { buildResumeModel } from "@/lib/resumeData";
 import { isSuperAdmin, useViewer } from "@/lib/useViewer";
+import ErasePortfolio from "@/components/ErasePortfolio";
 import { downloadResumePdf } from "@/lib/generateResumePdf";
 import SectionEditor from "@/components/SectionEditor";
 import MediaGallery from "@/components/MediaGallery";
@@ -144,6 +145,13 @@ export default function AdminStudentView() {
           </section>
         )}
       </div>
+
+      {/* At the foot of the page, well away from the editing controls. */}
+      {canEdit && (
+        <div className="mt-10 max-w-3xl">
+          <ErasePortfolio student={student} />
+        </div>
+      )}
     </main>
   );
 }
