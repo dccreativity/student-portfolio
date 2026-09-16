@@ -11,19 +11,11 @@ import {
   uploadPortfolioFile,
 } from "@/lib/uploads";
 
-// `readOnly` is used by the admin's per-student view — admins can browse
-// a student's galleries but never upload, edit captions, or delete.
-//
-// `allowUpload` is separate because the super admin's job is to correct
-// and remove what a student has put in, not to add photographs to
-// someone else's portfolio.
-export default function MediaGallery({
-  userId,
-  sectionKey,
-  mediaType,
-  readOnly = false,
-  allowUpload = true,
-}) {
+// `readOnly` is used by the admin's per-student view — an ordinary admin
+// can browse a student's galleries but never upload, edit captions, or
+// delete. The super admin gets the full set, in storage as well as in the
+// database (see supabase/migration-superadmin-storage.sql).
+export default function MediaGallery({ userId, sectionKey, mediaType, readOnly = false }) {
   const supabase = createClient();
   const fileInput = useRef(null);
 
@@ -183,7 +175,7 @@ export default function MediaGallery({
         <p className="text-xs uppercase tracking-wide text-neutral-400 mb-4">View only</p>
       )}
 
-      {!readOnly && allowUpload && (
+      {!readOnly && (
         <div className="flex flex-wrap items-center gap-4">
           <label className="inline-block rounded-xl bg-ink text-white px-5 py-2.5 text-sm font-medium hover:bg-inkDeep transition cursor-pointer">
             {uploading ? status || "Uploading…" : `Upload ${noun}s`}

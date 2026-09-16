@@ -137,7 +137,6 @@ export default function AdminStudentView() {
                 sectionKey={meta.key}
                 mediaType={meta.mediaType}
                 readOnly={!canEdit}
-                allowUpload={false}
               />
             ) : (
               <SectionEditor userId={id} sectionKey={meta.key} readOnly={!canEdit} />
