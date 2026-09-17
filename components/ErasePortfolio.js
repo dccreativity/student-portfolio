@@ -11,7 +11,7 @@ import { erasePortfolio } from "@/lib/adminActions";
 // has to be typed before the button will work. That second step is the
 // one that matters — it guards against the real mistake here, which is
 // not mis-clicking but doing this on the wrong student's page.
-export default function ErasePortfolio({ student }) {
+export default function ErasePortfolio({ student, onErased }) {
   const supabase = createClient();
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState("");
@@ -35,6 +35,7 @@ export default function ErasePortfolio({ student }) {
       });
       setTyped("");
       setOpen(false);
+      onErased?.();
     } catch (err) {
       setResult({ ok: false, message: err.message || "That didn't work." });
     } finally {

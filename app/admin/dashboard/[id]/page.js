@@ -9,6 +9,7 @@ import { getSectionBanner } from "@/lib/constants";
 import { buildResumeModel } from "@/lib/resumeData";
 import { isSuperAdmin, useViewer } from "@/lib/useViewer";
 import ErasePortfolio from "@/components/ErasePortfolio";
+import ClearSection from "@/components/ClearSection";
 import { downloadResumePdf } from "@/lib/generateResumePdf";
 import SectionEditor from "@/components/SectionEditor";
 import MediaGallery from "@/components/MediaGallery";
@@ -26,6 +27,12 @@ export default function AdminStudentView() {
   const [activeSection, setActiveSection] = useState("resume");
   const [resumeModel, setResumeModel] = useState(null);
   const [downloading, setDownloading] = useState(false);
+
+  // Bumped after a clear. The editors load their own content once on
+  // mount and a delete arrives with no row to show, so changing their key
+  // remounts them rather than leaving cleared data on screen.
+  const [refreshKey, setRefreshKey] = useState(0);
+  const refresh = () => setRefreshKey((n) => n + 1);
 
   useEffect(() => {
     supabase.from("profiles").select("*").eq("id", id).single().then(({ data }) => setStudent(data));
@@ -134,13 +141,23 @@ export default function AdminStudentView() {
             </PhotoBackdrop>
             {meta.type === "media" ? (
               <MediaGallery
+                key={`${meta.key}-${refreshKey}`}
                 userId={id}
                 sectionKey={meta.key}
                 mediaType={meta.mediaType}
                 readOnly={!canEdit}
               />
             ) : (
-              <SectionEditor userId={id} sectionKey={meta.key} readOnly={!canEdit} />
+              <SectionEditor
+                key={`${meta.key}-${refreshKey}`}
+                userId={id}
+                sectionKey={meta.key}
+                readOnly={!canEdit}
+              />
+            )}
+
+            {canEdit && (
+              <ClearSection student={student} meta={meta} onCleared={refresh} />
             )}
           </section>
         )}
@@ -149,7 +166,7 @@ export default function AdminStudentView() {
       {/* At the foot of the page, well away from the editing controls. */}
       {canEdit && (
         <div className="mt-10 max-w-3xl">
-          <ErasePortfolio student={student} />
+          <ErasePortfolio student={student} onErased={refresh} />
         </div>
       )}
     </main>
