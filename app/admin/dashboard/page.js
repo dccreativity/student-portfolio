@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabaseClient";
@@ -8,6 +8,12 @@ import { GRADE_OPTIONS } from "@/lib/constants";
 import Logo from "@/components/Logo";
 import { isSuperAdmin, useViewer } from "@/lib/useViewer";
 import GradeCompletionTable, { byFirstName } from "@/components/GradeCompletionTable";
+import {
+  RemoveCheckbox,
+  RemoveProfilesBar,
+  RemoveProfilesDialog,
+  useProfileRemoval,
+} from "@/components/RemoveProfiles";
 
 export default function AdminDashboard() {
   const supabase = createClient();
@@ -21,32 +27,29 @@ export default function AdminDashboard() {
   const [gradeFilter, setGradeFilter] = useState("all");
   const [loading, setLoading] = useState(true);
 
+  const load = useCallback(async () => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("role", "student")
+      .order("full_name");
+    setStudents(data || []);
+    setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
-    let channel;
-    let cancelled = false;
-
-    async function load() {
-      const { data } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("role", "student")
-        .order("full_name");
-      if (cancelled) return;
-      setStudents(data || []);
-      setLoading(false);
-    }
-
     load();
-    channel = supabase
+    const channel = supabase
       .channel("admin-profiles")
       .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, () => load())
       .subscribe();
 
     return () => {
-      cancelled = true;
-      if (channel) supabase.removeChannel(channel);
+      supabase.removeChannel(channel);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [load]);
 
   async function handleLogout() {
     await supabase.auth.signOut();
@@ -81,6 +84,11 @@ export default function AdminDashboard() {
   const visibleGroups = groups.filter(
     (g) => g.rows.length > 0 && (gradeFilter === "all" || gradeFilter === g.key)
   );
+
+  // Only ever offered to the super admin, and only over the students
+  // currently on screen — search and the grade filter decide who can be
+  // ticked, so nothing can be deleted from a list nobody is looking at.
+  const removal = useProfileRemoval({ students: filtered, onRemoved: load });
 
   return (
     <main className="min-h-screen bg-cream p-6 md:p-10">
@@ -124,6 +132,7 @@ export default function AdminDashboard() {
               Pick a single grade to see that grade&apos;s completion table —
               every section, with a tick where the student has saved it.
             </p>
+            {superAdmin && <RemoveProfilesBar removal={removal} />}
           </div>
           <div className="flex gap-2">
             <select
@@ -156,6 +165,7 @@ export default function AdminDashboard() {
             gradeLabel={
               gradeFilter === "none" ? "Grade not set" : `Grade ${gradeFilter}`
             }
+            removal={superAdmin ? removal : null}
           />
         ) : visibleGroups.length === 0 ? (
           <p className="text-sm text-neutral-500 py-4">No students found.</p>
@@ -168,25 +178,30 @@ export default function AdminDashboard() {
                 </h3>
                 <div className="divide-y divide-line">
                   {group.rows.map((s) => (
-                    <Link
-                      key={s.id}
-                      href={`/admin/dashboard/${s.id}`}
-                      className="flex items-center justify-between py-3 hover:text-clay"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <span className="w-9 h-9 rounded-full bg-sand grid place-items-center font-display text-sm shrink-0">
-                          {s.full_name?.[0]?.toUpperCase() ?? "S"}
-                        </span>
-                        <div className="min-w-0">
-                          <p className="font-medium truncate">{s.full_name || "Unnamed student"}</p>
-                          <p className="text-sm text-neutral-500 truncate">
-                            {s.uid ? `UID ${s.uid} · ` : ""}
-                            {s.email}
-                          </p>
+                    // The tick box lives beside the link rather than
+                    // inside it, so selecting a student never navigates
+                    // away from the list being worked through.
+                    <div key={s.id} className="flex items-center gap-3">
+                      {superAdmin && <RemoveCheckbox removal={removal} student={s} />}
+                      <Link
+                        href={`/admin/dashboard/${s.id}`}
+                        className="flex flex-1 items-center justify-between py-3 min-w-0 hover:text-clay"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <span className="w-9 h-9 rounded-full bg-sand grid place-items-center font-display text-sm shrink-0">
+                            {s.full_name?.[0]?.toUpperCase() ?? "S"}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="font-medium truncate">{s.full_name || "Unnamed student"}</p>
+                            <p className="text-sm text-neutral-500 truncate">
+                              {s.uid ? `UID ${s.uid} · ` : ""}
+                              {s.email}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      <span className="text-sm text-neutral-400 shrink-0 ml-4">View →</span>
-                    </Link>
+                        <span className="text-sm text-neutral-400 shrink-0 ml-4">View →</span>
+                      </Link>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -194,6 +209,8 @@ export default function AdminDashboard() {
           </div>
         )}
       </section>
+
+      {superAdmin && <RemoveProfilesDialog removal={removal} />}
     </main>
   );
 }

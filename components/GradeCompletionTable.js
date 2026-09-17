@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabaseClient";
 import { SECTION_SCHEMA } from "@/lib/sectionSchema";
 import { isSectionFilled } from "@/lib/completion";
 import StatusTick from "@/components/StatusTick";
+import { RemoveCheckbox } from "@/components/RemoveProfiles";
 
 // One row per student in a grade, one column per section of the
 // portfolio, a green tick wherever that student has saved something and a
@@ -29,7 +30,7 @@ export function byFirstName(a, b) {
   return firstName(a).localeCompare(firstName(b)) || String(a.email).localeCompare(String(b.email));
 }
 
-export default function GradeCompletionTable({ students, gradeLabel }) {
+export default function GradeCompletionTable({ students, gradeLabel, removal }) {
   const supabase = createClient();
   const [contentByStudent, setContentByStudent] = useState({});
   const [mediaByStudent, setMediaByStudent] = useState({});
@@ -133,15 +134,21 @@ export default function GradeCompletionTable({ students, gradeLabel }) {
             return (
               <tr key={student.id} className="group">
                 <td className="sticky left-0 z-10 w-64 min-w-[16rem] bg-white group-hover:bg-cream/70 p-3 border-b border-line">
-                  <Link href={`/admin/dashboard/${student.id}`} className="block hover:text-clay">
-                    <span className="font-medium block truncate">
-                      {student.full_name || "Unnamed student"}
-                    </span>
-                    <span className="text-xs text-neutral-500 block truncate">
-                      {student.uid ? `UID ${student.uid} · ` : ""}
-                      {student.email}
-                    </span>
-                  </Link>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <RemoveCheckbox removal={removal} student={student} />
+                    <Link
+                      href={`/admin/dashboard/${student.id}`}
+                      className="block min-w-0 flex-1 hover:text-clay"
+                    >
+                      <span className="font-medium block truncate">
+                        {student.full_name || "Unnamed student"}
+                      </span>
+                      <span className="text-xs text-neutral-500 block truncate">
+                        {student.uid ? `UID ${student.uid} · ` : ""}
+                        {student.email}
+                      </span>
+                    </Link>
+                  </div>
                 </td>
                 <td className="sticky left-64 z-10 bg-white group-hover:bg-cream/70 p-3 border-b border-r border-line text-center whitespace-nowrap">
                   <span className="text-xs font-medium text-neutral-600">
